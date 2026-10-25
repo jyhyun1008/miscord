@@ -24,13 +24,20 @@ onMounted(() => {
 })
 onBeforeUnmount(() => observer?.disconnect())
 
+// Cat ears are cut from the avatar itself, like Misskey's
+const earStyle = computed(() => ({ '--ear-image': `url(${JSON.stringify(portraitUrl.value)})` }))
+
 function finite(value: number | undefined) {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0
 }
 </script>
 
 <template>
-  <span ref="root" class="user-avatar">
+  <span ref="root" class="user-avatar" :class="{ cat: props.user.isCat }">
+    <template v-if="props.user.isCat">
+      <span class="ear left" :style="earStyle" aria-hidden="true" />
+      <span class="ear right" :style="earStyle" aria-hidden="true" />
+    </template>
     <img class="portrait" :src="portraitUrl" alt="" loading="lazy" draggable="false" @error="portraitFailed = true">
     <img
       v-for="(decoration, index) in shown"
@@ -68,6 +75,28 @@ function finite(value: number | undefined) {
   border-radius: 50%;
   object-fit: cover;
   background: var(--bg-active);
+}
+.ear {
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  width: 50%;
+  height: 50%;
+  border: 2px solid var(--bg-active);
+  background: var(--bg-active) var(--ear-image) center / 200% 200% no-repeat;
+  box-sizing: border-box;
+}
+.ear.left {
+  left: 0;
+  border-radius: 0 75% 75% 75%;
+  background-position: 0 0;
+  transform: rotate(37.5deg) skew(30deg);
+}
+.ear.right {
+  right: 0;
+  border-radius: 75% 0 75% 75%;
+  background-position: 100% 0;
+  transform: rotate(-37.5deg) skew(-30deg);
 }
 .decoration {
   position: absolute;

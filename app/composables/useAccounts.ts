@@ -36,6 +36,9 @@ export const MIAUTH_PERMISSIONS = [
   'write:pages',
   'read:page-likes',
   'write:page-likes',
+  // Settings sync lives in a private Play
+  'read:flash',
+  'write:flash',
 ]
 
 export function useAccounts() {

@@ -183,6 +183,18 @@ async function answer(n: MisskeyNotification, accept: boolean) {
 
           <p v-if="n.type === 'app' && n.body" class="app-body">{{ n.body }}</p>
 
+          <a
+            v-if="n.note?.reply && showsFullNote(n)"
+            class="quote-line reply-to"
+            :href="noteUrl(n.note.reply)"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="원노트 열기"
+          >
+            <Icon name="reply" :size="12" />
+            <MfmText class="reply-name" :text="displayName(n.note.reply.user)" :emojis="n.note.reply.user.emojis" plain />
+            <MfmText :text="snippet(n.note.reply)" :emojis="n.note.reply.emojis" plain />
+          </a>
           <NoteBody v-if="n.note && showsFullNote(n)" class="full" :note="n.note" />
           <a
             v-else-if="targetNote(n)"
@@ -346,6 +358,13 @@ async function answer(n: MisskeyNotification, accept: boolean) {
 }
 .quote-line :deep(.mfm) {
   white-space: nowrap;
+}
+.reply-to {
+  margin: 2px 0 4px;
+}
+.reply-to .reply-name {
+  margin: 0 4px 0 2px;
+  font-weight: 600;
 }
 .quote-line:hover {
   color: var(--fg);

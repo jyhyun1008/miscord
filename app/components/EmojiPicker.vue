@@ -6,13 +6,18 @@ const props = defineProps<{ account: Account, anchor: HTMLElement }>()
 const emit = defineEmits<{ pick: [emoji: string], close: [] }>()
 
 const { list, recent, load, use } = useEmojis(props.account)
+const { prefs, toggleFavoriteEmoji, moveFavoriteEmoji } = usePrefs(props.account.key)
+const dragging = ref<string | null>(null)
+const favorites = computed(() => prefs.value.favoriteEmojis)
+// Last emoji under the pointer, shown in the footer so it can be starred (stays after the pointer leaves)
+const hovered = ref<string | null>(null)
 const q = ref('')
 const input = ref<HTMLInputElement | null>(null)
 const root = ref<HTMLElement | null>(null)
 const pos = ref({ left: 0, top: 0 })
 
 const W = 360
-const H = 420
+const H = 460
 
 function place() {
   const r = props.anchor.getBoundingClientRect()
@@ -63,6 +68,11 @@ function pick(emoji: string) {
   emit('pick', emoji)
 }
 
+function toggleFavorite(emoji: string) {
+  toggleFavoriteEmoji(emoji)
+  hovered.value = emoji
+}
+
 function onDocDown(e: MouseEvent) {
   if (root.value && !root.value.contains(e.target as Node) && !props.anchor.contains(e.target as Node)) emit('close')
 }
@@ -96,20 +106,33 @@ onBeforeUnmount(() => {
       <div class="scroll">
         <template v-if="results">
           <div class="grid">
-            <button v-for="e in results" :key="e.name" :title="`:${e.name}:`" @click="pick(`:${e.name}:`)">
+            <button v-for="e in results" :key="e.name" :title="`:${e.name}:`" @mouseenter="hovered = `:${e.name}:`" @contextmenu.prevent="toggleFavorite(`:${e.name}:`)" @click="pick(`:${e.name}:`)">
               <img :src="e.url" :alt="e.name" loading="lazy" referrerpolicy="no-referrer">
             </button>
-            <button v-for="e in unicodeResults" :key="e" :title="e" @click="pick(e)">
+            <button v-for="e in unicodeResults" :key="e" :title="e" @mouseenter="hovered = e" @contextmenu.prevent="toggleFavorite(e)" @click="pick(e)">
               <UnicodeEmoji :emoji="e" />
             </button>
           </div>
           <p v-if="!results.length && !unicodeResults.length" class="none">검색 결과가 없어요</p>
         </template>
         <template v-else>
+          <section v-if="favorites.length">
+            <h4>즐겨찾기 <small>끌어서 순서 바꾸기</small></h4>
+            <div class="grid">
+              <button
+                v-for="e in favorites" :key="e" :title="e" draggable="true" :class="{ dragging: dragging === e }"
+                @dragstart="dragging = e" @dragend="dragging = null" @dragenter="dragging && moveFavoriteEmoji(dragging, e)" @dragover.prevent
+                @mouseenter="hovered = e" @contextmenu.prevent="toggleFavorite(e)" @click="pick(e)"
+              >
+                <img v-if="e.startsWith(':')" :src="emojiUrl(e)" :alt="e" loading="lazy" referrerpolicy="no-referrer">
+                <UnicodeEmoji v-else :emoji="e" />
+              </button>
+            </div>
+          </section>
           <section v-if="recent.length">
             <h4>최근 사용</h4>
             <div class="grid">
-              <button v-for="e in recent" :key="e" :title="e" @click="pick(e)">
+              <button v-for="e in recent" :key="e" :title="e" @mouseenter="hovered = e" @contextmenu.prevent="toggleFavorite(e)" @click="pick(e)">
                 <img v-if="e.startsWith(':')" :src="emojiUrl(e)" :alt="e" loading="lazy" referrerpolicy="no-referrer">
                 <UnicodeEmoji v-else :emoji="e" />
               </button>
@@ -121,7 +144,7 @@ onBeforeUnmount(() => {
               {{ g.category }} <small>{{ g.emojis.length }}</small>
             </h4>
             <div v-if="openCats[g.category]" class="grid">
-              <button v-for="e in g.emojis" :key="e.name" :title="`:${e.name}:`" @click="pick(`:${e.name}:`)">
+              <button v-for="e in g.emojis" :key="e.name" :title="`:${e.name}:`" @mouseenter="hovered = `:${e.name}:`" @contextmenu.prevent="toggleFavorite(`:${e.name}:`)" @click="pick(`:${e.name}:`)">
                 <img :src="e.url" :alt="e.name" loading="lazy" referrerpolicy="no-referrer">
               </button>
             </div>
@@ -130,13 +153,29 @@ onBeforeUnmount(() => {
           <section v-for="g in UNICODE_EMOJIS" :key="g.category">
             <h4>{{ g.category }}</h4>
             <div class="grid">
-              <button v-for="e in g.emojis" :key="e" :title="e" @click="pick(e)">
+              <button v-for="e in g.emojis" :key="e" :title="e" @mouseenter="hovered = e" @contextmenu.prevent="toggleFavorite(e)" @click="pick(e)">
                 <UnicodeEmoji :emoji="e" />
               </button>
             </div>
           </section>
         </template>
       </div>
+      <footer class="foot">
+        <template v-if="hovered">
+          <img v-if="hovered.startsWith(':')" class="foot-emoji" :src="emojiUrl(hovered)" :alt="hovered" referrerpolicy="no-referrer">
+          <UnicodeEmoji v-else class="foot-emoji" :emoji="hovered" />
+          <span class="foot-name">{{ hovered }}</span>
+          <button
+            class="star"
+            :class="{ on: favorites.includes(hovered) }"
+            :title="favorites.includes(hovered) ? '즐겨찾기에서 빼기' : '즐겨찾기에 추가'"
+            @click="toggleFavorite(hovered)"
+          >
+            <Icon name="star" :size="16" />
+          </button>
+        </template>
+        <span v-else class="foot-hint">이모지를 우클릭하면 즐겨찾기에 추가돼요</span>
+      </footer>
     </div>
   </Teleport>
 </template>
@@ -212,10 +251,71 @@ h4 .rot {
 .grid button:hover {
   background: var(--bg-active);
 }
+.grid button.dragging {
+  opacity: 0.4;
+}
+h4 small {
+  margin-left: 4px;
+  font-weight: 400;
+  text-transform: none;
+  color: var(--fg-faint);
+}
 .grid img {
   width: 30px;
   height: 30px;
   object-fit: contain;
+}
+.foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  flex-shrink: 0;
+  padding: 0 10px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-rail);
+}
+:root[data-theme='light'] .foot {
+  background: var(--bg-input);
+}
+.foot-emoji {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  font-size: 22px;
+  line-height: 1;
+}
+.foot-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.foot-hint {
+  font-size: 12px;
+  color: var(--fg-faint);
+}
+.star {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  color: var(--fg-muted);
+}
+.star:hover {
+  background: var(--bg-active);
+  color: var(--fg);
+}
+.star.on {
+  color: #f0b232;
+}
+.star.on :deep(path) {
+  fill: currentColor;
 }
 .none {
   text-align: center;

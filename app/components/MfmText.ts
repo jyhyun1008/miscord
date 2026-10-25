@@ -13,10 +13,13 @@ export default defineComponent({
     text: { type: String, required: true },
     emojis: { type: Object as PropType<Record<string, string> | undefined>, default: undefined },
     plain: { type: Boolean, default: false },
+    /** The author is a cat: render text in cat speech (unless turned off in settings) */
+    nyaize: { type: Boolean, default: false },
   },
   setup(props) {
     const account = useCurrentAccount()
     const profile = useProfilePopout()
+    const ui = useUi()
 
     const emojiList = account.value ? useEmojis(account.value) : null
 
@@ -37,7 +40,7 @@ export default defineComponent({
       return nodes.map((node): VNode | string => {
         switch (node.type) {
           case 'text':
-            return node.props.text
+            return props.nyaize && ui.catSpeak ? nyaize(node.props.text) : node.props.text
           case 'unicodeEmoji':
             return h(UnicodeEmoji, { emoji: node.props.emoji })
           case 'emojiCode': {

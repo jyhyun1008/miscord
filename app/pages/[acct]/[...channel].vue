@@ -17,6 +17,7 @@ watchEffect(() => {
   markUsed(account.value.key)
   useEmojis(account.value).load()
   useNotifications(account.value).start()
+  usePrefsSync(account.value).start()
   if (!channel.value) navigateTo(channelPath(account.value.key, { kind: 'home' }), { replace: true })
 })
 

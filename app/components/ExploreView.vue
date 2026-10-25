@@ -45,6 +45,7 @@ const online = ref<number | null>(null)
 const trends = ref<TrendTag[] | null>(null)
 const featured = ref<Note[] | null>(null)
 const pinnedUsers = ref<UserLite[] | null>(null)
+const tab = ref<'featured' | 'emojis'>('featured')
 
 // Each section fills in on its own; one failing endpoint shouldn't blank the page
 onMounted(() => {
@@ -136,27 +137,35 @@ function reactionTotal(note: Note) {
       </section>
 
       <div class="columns">
-        <!-- Featured notes -->
         <section class="col-main">
-          <h3 class="sec-title"><Icon name="star" :size="16" /> 인기 노트</h3>
-          <p v-if="featured === null" class="muted">불러오는 중…</p>
-          <EmptyState v-else-if="!featured.length" icon="star">아직 인기 노트가 없어요.</EmptyState>
-          <article v-for="note in featured ?? []" :key="note.id" class="note-card">
-            <header class="note-head">
-              <UserAvatar class="note-avatar" :user="note.user" @click="profile.open({ userId: note.user.id }, $event.currentTarget as HTMLElement)" />
-              <MfmText class="note-name" :text="displayName(note.user)" :emojis="note.user.emojis" plain />
-              <span class="note-acct">{{ acct(note.user) }}</span>
-              <a class="note-time" :href="noteUrl(note)" target="_blank" rel="noopener noreferrer" :title="formatFull(note.createdAt)">
-                {{ formatStamp(note.createdAt) }}
-              </a>
-            </header>
-            <NoteBody :note="note" />
-            <footer class="note-meta">
-              <span title="답글"><Icon name="reply" :size="14" /> {{ num(note.repliesCount) }}</span>
-              <span title="리노트"><Icon name="renote" :size="14" /> {{ num(note.renoteCount) }}</span>
-              <span title="반응"><Icon name="smile" :size="14" /> {{ num(reactionTotal(note)) }}</span>
-            </footer>
-          </article>
+          <nav class="tabs main-tabs" role="tablist">
+            <button class="tab" role="tab" :aria-selected="tab === 'featured'" :class="{ on: tab === 'featured' }" @click="tab = 'featured'">인기 노트</button>
+            <button class="tab" role="tab" :aria-selected="tab === 'emojis'" :class="{ on: tab === 'emojis' }" @click="tab = 'emojis'">커스텀 이모지</button>
+          </nav>
+
+          <ServerEmojis v-if="tab === 'emojis'" :account="props.account" />
+
+          <!-- Featured notes -->
+          <template v-else>
+            <p v-if="featured === null" class="muted">불러오는 중…</p>
+            <EmptyState v-else-if="!featured.length" icon="star">아직 인기 노트가 없어요.</EmptyState>
+            <article v-for="note in featured ?? []" :key="note.id" class="note-card">
+              <header class="note-head">
+                <UserAvatar class="note-avatar" :user="note.user" @click="profile.open({ userId: note.user.id }, $event.currentTarget as HTMLElement)" />
+                <MfmText class="note-name" :text="displayName(note.user)" :emojis="note.user.emojis" plain />
+                <span class="note-acct">{{ acct(note.user) }}</span>
+                <a class="note-time" :href="noteUrl(note)" target="_blank" rel="noopener noreferrer" :title="formatFull(note.createdAt)">
+                  {{ formatStamp(note.createdAt) }}
+                </a>
+              </header>
+              <NoteBody :note="note" />
+              <footer class="note-meta">
+                <span title="답글"><Icon name="reply" :size="14" /> {{ num(note.repliesCount) }}</span>
+                <span title="리노트"><Icon name="renote" :size="14" /> {{ num(note.renoteCount) }}</span>
+                <span title="반응"><Icon name="smile" :size="14" /> {{ num(reactionTotal(note)) }}</span>
+              </footer>
+            </article>
+          </template>
         </section>
 
         <aside class="col-side">
@@ -391,6 +400,12 @@ function reactionTotal(note: Note) {
   border-radius: var(--radius);
   background: var(--bg-sidebar);
   border: 1px solid var(--border);
+}
+
+.main-tabs {
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
 }
 
 /* ---- featured notes ---- */

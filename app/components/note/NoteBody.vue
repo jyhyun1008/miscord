@@ -35,14 +35,14 @@ const profile = useProfilePopout()
 <template>
   <div class="body">
     <div v-if="props.note.cw != null" class="cw">
-      <MfmText :text="props.note.cw" :emojis="emojis" />
+      <MfmText :text="props.note.cw" :emojis="emojis" :nyaize="speaksAsCat(props.note.user)" />
       <button class="cw-btn" @click="showCw = !showCw">
         {{ showCw ? '숨기기' : `내용 보기${props.note.files.length ? ` (파일 ${props.note.files.length}개)` : ''}` }}
       </button>
     </div>
 
     <template v-if="props.note.cw == null || showCw">
-      <MfmText v-if="props.note.text" class="text" :text="props.note.text" :emojis="emojis" />
+      <MfmText v-if="props.note.text" class="text" :text="props.note.text" :emojis="emojis" :nyaize="speaksAsCat(props.note.user)" />
 
       <div v-if="images.length" class="images" :class="`n${Math.min(images.length, 4)}`">
         <div

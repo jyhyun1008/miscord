@@ -16,6 +16,8 @@ interface UiState {
   accent: string
   /** How unicode emoji are drawn */
   emojiStyle: EmojiStyle
+  /** Show cat accounts' notes in cat speech, like Misskey does */
+  catSpeak: boolean
 }
 
 /** Transient UI state shared across layout pieces (drawers, modals, theme). */
@@ -28,6 +30,7 @@ export function useUi() {
     theme: loadJson<ThemeMode>('miscord:theme', 'system'),
     accent: loadJson<string>('miscord:accent', DEFAULT_ACCENT),
     emojiStyle: loadJson<EmojiStyle>('miscord:emoji-style', 'twemoji'),
+    catSpeak: loadJson<boolean>('miscord:cat-speak', true),
   })).value
 }
 

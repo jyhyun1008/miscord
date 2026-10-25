@@ -35,10 +35,12 @@ export interface AccountPrefs {
   /** Sidebar sections turned off in settings; absent means shown */
   hiddenSections: Partial<Record<OptionalSection, boolean>>
   defaultVisibility: 'public' | 'home' | 'followers'
+  /** Pinned at the top of the emoji picker; `:name:` for this server's custom emojis, or a unicode emoji */
+  favoriteEmojis: string[]
 }
 
 function defaults(): AccountPrefs {
-  return { channels: [], antennas: [], lists: [], tags: [], pinnedUserIds: [], groups: [], userGroups: {}, collapsed: {}, hiddenSections: {}, defaultVisibility: 'public' }
+  return { channels: [], antennas: [], lists: [], tags: [], pinnedUserIds: [], groups: [], userGroups: {}, collapsed: {}, hiddenSections: {}, defaultVisibility: 'public', favoriteEmojis: [] }
 }
 
 /** Per-account personalization (custom channels, pinned users), persisted in localStorage. */
@@ -86,6 +88,20 @@ export function usePrefs(accountKey: string) {
     prefs.value.hiddenSections[section] = hidden
     save()
   }
+  function toggleFavoriteEmoji(emoji: string) {
+    const list = prefs.value.favoriteEmojis
+    prefs.value.favoriteEmojis = list.includes(emoji) ? list.filter(e => e !== emoji) : [...list, emoji]
+    save()
+  }
+  /** Drag-and-drop reorder: `emoji` takes `target`'s place. */
+  function moveFavoriteEmoji(emoji: string, target: string) {
+    const list = prefs.value.favoriteEmojis
+    const from = list.indexOf(emoji)
+    const to = list.indexOf(target)
+    if (from < 0 || to < 0 || from === to) return
+    list.splice(to, 0, ...list.splice(from, 1))
+    save()
+  }
   function addGroup(name: string, color: string) {
     const group = { id: crypto.randomUUID(), name: name.trim(), color }
     prefs.value.groups.push(group)
@@ -123,7 +139,7 @@ export function usePrefs(accountKey: string) {
   }
 
   return {
-    prefs, save, syncFromServer, addList, addTag, removeTag, togglePin, toggleCollapsed, setSectionHidden, moveItem,
+    prefs, save, syncFromServer, addList, addTag, removeTag, togglePin, toggleCollapsed, setSectionHidden, moveItem, toggleFavoriteEmoji, moveFavoriteEmoji,
     addGroup, updateGroup, removeGroup, setUserGroup, groupOf,
   }
 }

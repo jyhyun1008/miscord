@@ -19,6 +19,8 @@ export interface UserLite {
   avatarDecorations?: AvatarDecoration[]
   isBot?: boolean
   isCat?: boolean
+  /** Forks (Sharkey, CherryPick…) let cats opt out of cat speech */
+  speakAsCat?: boolean
   emojis?: Record<string, string>
   onlineStatus?: 'online' | 'active' | 'offline' | 'unknown'
   instance?: {
