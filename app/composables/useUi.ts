@@ -18,6 +18,8 @@ interface UiState {
   emojiStyle: EmojiStyle
   /** Show cat accounts' notes in cat speech, like Misskey does */
   catSpeak: boolean
+  /** Play MFM animations ($[spin], $[jump]…); the system's reduced-motion setting also stops them */
+  mfmAnimation: boolean
 }
 
 /** Transient UI state shared across layout pieces (drawers, modals, theme). */
@@ -31,6 +33,7 @@ export function useUi() {
     accent: loadJson<string>('miscord:accent', DEFAULT_ACCENT),
     emojiStyle: loadJson<EmojiStyle>('miscord:emoji-style', 'twemoji'),
     catSpeak: loadJson<boolean>('miscord:cat-speak', true),
+    mfmAnimation: loadJson<boolean>('miscord:mfm-animation', true),
   })).value
 }
 

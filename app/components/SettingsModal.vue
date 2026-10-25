@@ -113,6 +113,19 @@ async function logout(key: string) {
         </ul>
       </section>
 
+      <section>
+        <h3>MFM <span class="hint">모든 계정 공통</span></h3>
+        <ul class="toggles">
+          <li>
+            <label class="toggle">
+              <span>움직이는 MFM 재생 <small class="hint">$[spin] $[jump] $[shake]…</small></span>
+              <input v-model="ui.mfmAnimation" type="checkbox" class="sr-only">
+              <span class="switch" aria-hidden="true" />
+            </label>
+          </li>
+        </ul>
+      </section>
+
     </div>
 
     <div v-else-if="tab === 'general'" class="panel">

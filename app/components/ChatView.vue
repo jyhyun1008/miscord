@@ -109,6 +109,10 @@ const items = computed(() => {
 
 // ---- scrolling ----
 function toBottom() {
+  if (!holdScroll.value && tl.trimOlder()) {
+    nextTick(toBottom)
+    return
+  }
   const el = scroller.value
   if (el) el.scrollTop = el.scrollHeight
 }
@@ -126,7 +130,10 @@ function onScroll() {
   if (!tl.ready.value) return
   const el = scroller.value!
   stick.value = el.scrollHeight - el.scrollTop - el.clientHeight <= 200
-  if (stick.value) unread.value = 0
+  if (stick.value) {
+    unread.value = 0
+    if (!holdScroll.value && tl.trimOlder()) nextTick(toBottom)
+  }
   if (el.scrollTop < 400) loadOlderKeepingPosition()
 }
 
@@ -138,6 +145,7 @@ function findNoteEl(noteId: string) {
 
 async function jumpToNote(noteId: string) {
   let el = findNoteEl(noteId)
+  stick.value = false
   // The original may be further back: page in older notes until it shows up
   for (let i = 0; !el && i < JUMP_MAX_PAGES && !tl.done.value && !tl.error.value; i++) {
     await loadOlderKeepingPosition()
@@ -158,6 +166,10 @@ async function jumpToNote(noteId: string) {
 function jumpToPresent() {
   unread.value = 0
   stick.value = true
+  if (!holdScroll.value && tl.trimOlder()) {
+    nextTick(toBottom)
+    return
+  }
   scroller.value?.scrollTo({ top: scroller.value.scrollHeight, behavior: 'smooth' })
 }
 

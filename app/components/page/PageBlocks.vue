@@ -60,10 +60,10 @@ function file(id: string | null | undefined) {
   gap: 10px;
   margin-top: 8px;
 }
+/* Sub-sections sit flush like Misskey's; the heading size carries the hierarchy */
 .section.d1,
 .section.d2 {
-  padding-left: 12px;
-  border-left: 2px solid var(--bg-active);
+  margin-top: 4px;
 }
 .heading {
   margin: 0;
@@ -72,15 +72,18 @@ function file(id: string | null | undefined) {
   line-height: 1.3;
 }
 h2.heading {
-  font-size: 22px;
+  font-size: 26px;
+  font-weight: 800;
   padding-bottom: 6px;
   border-bottom: 1px solid var(--border);
 }
 h3.heading {
-  font-size: 18px;
+  font-size: 21px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
 }
 h4.heading {
-  font-size: 16px;
+  font-size: 18px;
 }
 .image {
   display: block;
@@ -119,5 +122,18 @@ h4.heading {
   border: 1px dashed var(--bg-active);
   font-size: 13px;
   color: var(--fg-faint);
+}
+
+/* Stay below the page title, which shrinks to 24px on phones */
+@media (max-width: 768px) {
+  h2.heading {
+    font-size: 22px;
+  }
+  h3.heading {
+    font-size: 19px;
+  }
+  h4.heading {
+    font-size: 17px;
+  }
 }
 </style>

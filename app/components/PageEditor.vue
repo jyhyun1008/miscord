@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Account } from '~/composables/useAccounts'
 import type { DriveFile, Note, Page, PageBlock } from '~/types/misskey'
+import type { MfmSyntax } from '~/utils/textEdit'
 
 const props = defineProps<{ account: Account, pageId: string | null }>()
 
@@ -177,11 +178,37 @@ const previewFiles = computed(() => (cover.value ? [cover.value, ...files.value]
 function autosize() {
   const el = ta.value
   if (!el) return
+  // Measuring at height:auto briefly shrinks the scroller, which clamps its scrollTop; put it back
+  const scroller = el.closest<HTMLElement>('.write')
+  const top = scroller?.scrollTop ?? 0
   el.style.height = 'auto'
   el.style.height = `${el.scrollHeight}px`
+  if (!scroller) return
+  scroller.scrollTop = top
+  // Typing at the end: keep the new line in view instead of letting it slip under the edge
+  if (document.activeElement === el && el.selectionEnd === el.value.length) {
+    const below = el.getBoundingClientRect().bottom + 24 - scroller.getBoundingClientRect().bottom
+    if (below > 0) scroller.scrollTop += below
+  }
 }
 // Hidden behind the preview tab the textarea measures 0px, so re-measure when it comes back
 watch([text, pane], () => nextTick(autosize))
+// Resizing the window or the side-by-side switch rewraps the text without an input event
+let lastWidth = 0
+const widthObserver = typeof ResizeObserver === 'undefined'
+  ? null
+  : new ResizeObserver(([entry]) => {
+    const w = Math.round(entry?.contentRect.width ?? 0)
+    if (w && w !== lastWidth) {
+      lastWidth = w
+      autosize()
+    }
+  })
+watch(ta, (el, old) => {
+  if (old) widthObserver?.unobserve(old)
+  if (el) widthObserver?.observe(el)
+})
+onBeforeUnmount(() => widthObserver?.disconnect())
 
 function replaceRange(start: number, end: number, insert: string, caret = start + insert.length) {
   text.value = text.value.slice(0, start) + insert + text.value.slice(end)
@@ -231,7 +258,27 @@ function insertEmoji(emoji: string) {
   replaceRange(at, el?.selectionEnd ?? at, emoji.startsWith(':') ? ` ${emoji} ` : emoji)
 }
 
+// @user / :emoji completion, shown just under the caret line
+const suggest = useAutocomplete(props.account, text, ta)
+const suggestPos = ref({ top: 0, left: 0 })
+watch(() => suggest.range.value?.start, (start) => {
+  const el = ta.value
+  if (start == null || !el) return
+  const caret = caretOffset(el, start)
+  suggestPos.value = {
+    top: el.offsetTop + caret.top + caret.height + 4,
+    left: Math.max(0, Math.min(el.offsetLeft + caret.left, el.offsetLeft + el.clientWidth - 300)),
+  }
+})
+
+const mfmAnchor = ref<HTMLElement | null>(null)
+function insertMfm(syntax: MfmSyntax) {
+  mfmAnchor.value = null
+  wrapSelection(ta.value, text, syntax)
+}
+
 function onKeydown(e: KeyboardEvent) {
+  if (suggest.onKey(e)) return
   if (!(e.metaKey || e.ctrlKey) || e.isComposing) return
   if (e.key === 'b') {
     e.preventDefault()
@@ -442,6 +489,7 @@ async function save() {
         <div class="toolbar">
           <button class="tool" title="섹션 제목 (# → ## → ###)" @click="cycleHeading"><Icon name="heading" :size="16" /></button>
           <button class="tool" title="굵게 (Ctrl/⌘ + B)" @click="wrap('**')"><Icon name="bold" :size="16" /></button>
+          <button class="tool mfm" :class="{ on: !!mfmAnchor }" title="MFM 서식 (크게, 빙글빙글, 글자색…)" @click="mfmAnchor = mfmAnchor ? null : ($event.currentTarget as HTMLElement)">MFM</button>
           <button class="tool" title="이미지 올리기" @click="fileInput?.click()"><Icon name="image" :size="16" /></button>
           <button class="tool" title="드라이브에서 이미지 넣기" @click="drivePick = 'body'"><Icon name="drive" :size="16" /></button>
           <button class="tool" :class="{ on: noteQuery !== null }" title="노트 넣기" @click="noteQuery = noteQuery === null ? '' : null"><Icon name="quote" :size="16" /></button>
@@ -473,6 +521,14 @@ async function save() {
           spellcheck="false"
           @keydown="onKeydown"
           @paste="onPaste"
+          @input="suggest.detect"
+          @click="suggest.detect"
+          @blur="suggest.close"
+        />
+        <SuggestList
+          v-if="suggest.open.value" class="suggest" :items="suggest.items.value" :index="suggest.index.value"
+          :style="{ top: `${suggestPos.top}px`, left: `${suggestPos.left}px` }"
+          @pick="suggest.pick" @hover="suggest.index.value = $event"
         />
 
         <details class="advanced" :open="advancedOpen" @toggle="advancedOpen = ($event.target as HTMLDetailsElement).open">
@@ -516,6 +572,7 @@ async function save() {
       @pick="onDrivePick"
       @close="drivePick = null"
     />
+    <MfmPalette v-if="mfmAnchor" :anchor="mfmAnchor" @pick="insertMfm" @close="mfmAnchor = null" />
     <EmojiPicker v-if="emojiAnchor" :account="props.account" :anchor="emojiAnchor" @pick="insertEmoji" @close="emojiAnchor = null" />
   </div>
 </template>
@@ -544,6 +601,8 @@ async function save() {
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  /* Without a sized row the panes grow to their content and never scroll themselves */
+  grid-template-rows: minmax(0, 1fr);
 }
 .write,
 .preview {
@@ -556,9 +615,26 @@ async function save() {
   display: none;
 }
 .write {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+.suggest {
+  position: absolute;
+  width: 300px;
+  max-width: calc(100% - 40px);
+}
+.tool.mfm {
+  width: auto;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+/* .write scrolls instead; otherwise flex squashes overflow:hidden children (the cover, the autosized textarea) to fit */
+.write > * {
+  flex-shrink: 0;
 }
 .banner {
   display: flex;

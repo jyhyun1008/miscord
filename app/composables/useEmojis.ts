@@ -39,6 +39,7 @@ export function useEmojis(account: Account) {
   }
 
   function use(emoji: string) {
+    if (!emoji) return
     recent.value = [emoji, ...recent.value.filter(e => e !== emoji)].slice(0, 32)
     saveJson(RECENT_KEY, recent.value)
   }

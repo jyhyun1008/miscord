@@ -5,6 +5,21 @@ const props = defineProps<{ user: UserLite, pinned: boolean, color?: string, sel
 const emit = defineEmits<{ open: [anchor: HTMLElement], pin: [] }>()
 
 const offline = computed(() => props.user.onlineStatus === 'offline')
+
+const account = useCurrentAccount()
+const toast = useToast()
+
+/** Right-click copies the full handle, with this server's host spelled out for local users. */
+async function copyHandle() {
+  const handle = `@${props.user.username}@${props.user.host ?? account.value?.host}`
+  try {
+    await navigator.clipboard.writeText(handle)
+    toast.show(`${handle} 를 복사했어요`)
+  }
+  catch (e) {
+    toast.error(e)
+  }
+}
 </script>
 
 <template>
@@ -15,6 +30,7 @@ const offline = computed(() => props.user.onlineStatus === 'offline')
     tabindex="0"
     @click="emit('open', $event.currentTarget as HTMLElement)"
     @keydown.enter="emit('open', $event.currentTarget as HTMLElement)"
+    @contextmenu.prevent="copyHandle"
   >
     <UserAvatar class="avatar" :user="props.user">
       <span v-if="props.user.onlineStatus && props.user.onlineStatus !== 'unknown'" class="status" :class="props.user.onlineStatus" />

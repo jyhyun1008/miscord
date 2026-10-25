@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Account } from '~/composables/useAccounts'
 import type { DriveFile, Note } from '~/types/misskey'
+import type { MfmSyntax } from '~/utils/textEdit'
 
 type Vis = 'public' | 'home' | 'followers'
 interface PollDraft { choices: string[], multiple: boolean, expiredAfter: number | null }
@@ -125,7 +126,16 @@ function setDraft(d: { text: string, cw: string | null, files: DriveFile[], visi
 
 defineExpose({ focus, setDraft })
 
+const suggest = useAutocomplete(props.account, text, ta)
+const mfmAnchor = ref<HTMLElement | null>(null)
+
+function insertMfm(syntax: MfmSyntax) {
+  mfmAnchor.value = null
+  wrapSelection(ta.value, text, syntax)
+}
+
 function onKeydown(e: KeyboardEvent) {
+  if (suggest.onKey(e)) return
   // Don't send while an IME (Korean/Japanese input) is composing.
   // On touch devices Enter is a newline; the send button sends.
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && e.keyCode !== 229 && !matchMedia('(pointer: coarse)').matches) {
@@ -184,8 +194,12 @@ async function upload(list: FileList | File[]) {
   }
 }
 
-function pickFrom(action: 'upload' | 'drive' | 'cw' | 'poll') {
+function pickFrom(action: 'upload' | 'drive' | 'cw' | 'poll' | 'mfm') {
   plusOpen.value = false
+  if (action === 'mfm') {
+    mfmAnchor.value = plusWrap.value
+    return
+  }
   if (action === 'upload') fileInput.value?.click()
   else if (action === 'drive') driveOpen.value = true
   else if (action === 'cw') {
@@ -259,6 +273,10 @@ function insertEmoji(emoji: string) {
     </div>
 
     <div class="box" :class="{ attached: props.replyTo || props.quoteOf }">
+      <SuggestList
+        v-if="suggest.open.value" class="suggest" :items="suggest.items.value" :index="suggest.index.value"
+        @pick="suggest.pick" @hover="suggest.index.value = $event"
+      />
       <div v-if="files.length || uploading" class="files">
         <div v-for="f in files" :key="f.id" class="file">
           <img v-if="f.type.startsWith('image/')" :src="f.thumbnailUrl ?? f.url" alt="">
@@ -305,6 +323,9 @@ function insertEmoji(emoji: string) {
             <button :class="{ on: !!poll }" @click="pickFrom('poll')">
               <Icon name="poll" :size="16" /> 투표
             </button>
+            <button @click="pickFrom('mfm')">
+              <Icon name="bold" :size="16" /> MFM 서식
+            </button>
           </div>
         </div>
         <input ref="fileInput" type="file" multiple hidden @change="upload(($event.target as HTMLInputElement).files ?? []); ($event.target as HTMLInputElement).value = ''">
@@ -316,6 +337,9 @@ function insertEmoji(emoji: string) {
           :placeholder="props.placeholder"
           @keydown="onKeydown"
           @paste="onPaste"
+          @input="suggest.detect"
+          @click="suggest.detect"
+          @blur="suggest.close"
         />
 
         <span v-if="remaining < 300" class="count" :class="{ over: remaining < 0 }">{{ remaining }}</span>
@@ -349,6 +373,7 @@ function insertEmoji(emoji: string) {
       @pick="onDrivePick"
       @close="driveOpen = false"
     />
+    <MfmPalette v-if="mfmAnchor" :anchor="mfmAnchor" @pick="insertMfm" @close="mfmAnchor = null" />
     <EmojiPicker v-if="emojiAnchor" :account="props.account" :anchor="emojiAnchor" @pick="insertEmoji" @close="emojiAnchor = null" />
   </div>
 </template>
@@ -381,8 +406,15 @@ function insertEmoji(emoji: string) {
   color: var(--fg);
 }
 .box {
+  position: relative;
   border-radius: 8px;
   background: var(--bg-input);
+}
+.suggest {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 6px);
 }
 .box.attached {
   border-radius: 0 0 8px 8px;

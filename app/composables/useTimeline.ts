@@ -2,6 +2,7 @@ import type { Account } from './useAccounts'
 import type { Note } from '~/types/misskey'
 
 const PAGE = 30
+const RETAINED_NOTES = 300
 
 export function isPureRenote(n: Note): n is Note & { renote: Note } {
   return !!n.renote && !n.text && !n.cw && !n.files?.length && !n.poll
@@ -77,6 +78,10 @@ export function useTimeline(account: Account, channel: TimelineChannel, onIncomi
 
   function remove(noteId: string) {
     notes.value = notes.value.filter(n => n.id !== noteId && appearNote(n).id !== noteId)
+    releaseUnusedSubscriptions()
+  }
+
+  function releaseUnusedSubscriptions() {
     const retained = new Set(notes.value.map(n => appearNote(n).id))
     for (const [id, unsubscribe] of noteSubs) {
       if (!retained.has(id)) {
@@ -84,6 +89,15 @@ export function useTimeline(account: Account, channel: TimelineChannel, onIncomi
         noteSubs.delete(id)
       }
     }
+  }
+
+  // Only called at the present: history being read must stay in place.
+  function trimOlder() {
+    if (loading.value || notes.value.length <= RETAINED_NOTES) return false
+    notes.value = notes.value.slice(-RETAINED_NOTES)
+    done.value = false // Discarded history can be fetched again using untilId.
+    releaseUnusedSubscriptions()
+    return true
   }
 
   /** Apply a mutation to every loaded copy of a note (it can appear as itself or as a renote/quote target). */
@@ -149,5 +163,5 @@ export function useTimeline(account: Account, channel: TimelineChannel, onIncomi
   onMounted(start)
   onBeforeUnmount(stop)
 
-  return { notes, loading, done, error, ready, loadOlder, push, remove, patch, applyReaction, streamState: stream.state }
+  return { notes, loading, done, error, ready, loadOlder, push, remove, trimOlder, patch, applyReaction, streamState: stream.state }
 }

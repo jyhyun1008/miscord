@@ -100,12 +100,26 @@ export default defineComponent({
           case 'hashtag':
             return h('a', { class: 'mfm-hashtag', href: '#', onClick: (e: MouseEvent) => goTag(e, node.props.hashtag) }, `#${node.props.hashtag}`)
           case 'fn':
-            // Animations/transforms are skipped; just show the content
-            return h('span', { class: `mfm-fn mfm-fn-${node.props.name}` }, render(node.children))
+            return renderFnNode(node)
           default:
             return ''
         }
       })
+    }
+
+    function renderFnNode(node: mfm.MfmFn): VNode {
+      const { name, args } = node.props
+      if (name === 'ruby') {
+        const only = node.children.length === 1 && node.children[0]!.type === 'text' ? (node.children[0] as mfm.MfmText).props.text : null
+        const [base, ...rt] = only?.split(' ') ?? []
+        if (base && rt.length) return h('ruby', [base, h('rt', rt.join(' '))])
+      }
+      if (name === 'unixtime') {
+        const only = node.children.length === 1 && node.children[0]!.type === 'text' ? Number((node.children[0] as mfm.MfmText).props.text) : Number.NaN
+        if (Number.isFinite(only)) return h('span', { class: 'mfm-unixtime' }, formatFull(new Date(only * 1000).toISOString()))
+      }
+      const fn = renderFn(name, args, ui.mfmAnimation)
+      return h('span', { class: ['mfm-fn', `mfm-fn-${name}`, fn?.cls], style: fn?.style }, render(node.children))
     }
 
     const nodes = computed(() => props.plain ? mfm.parseSimple(props.text) : mfm.parse(props.text))
