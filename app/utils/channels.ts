@@ -14,8 +14,13 @@ export type Channel =
   | { kind: 'notifications' }
   /** Server overview: info, stats, trends, featured notes */
   | { kind: 'explore' }
+  /** Gallery of Misskey Pages (like Discord's forum gallery layout) */
+  | { kind: 'pages' }
+  | { kind: 'page', id: string }
+  /** Page editor; `id: null` writes a new page */
+  | { kind: 'page-edit', id: string | null }
 
-export type TimelineChannel = Exclude<Channel, { kind: 'clips' } | { kind: 'notifications' } | { kind: 'explore' }>
+export type TimelineChannel = Exclude<Channel, { kind: 'clips' | 'notifications' | 'explore' | 'pages' | 'page' | 'page-edit' }>
 
 export const BUILTIN_CHANNELS: { kind: BuiltinKind, label: string, topic: string }[] = [
   { kind: 'home', label: '홈', topic: '내가 팔로우한 사람들의 노트' },
@@ -25,7 +30,7 @@ export const BUILTIN_CHANNELS: { kind: BuiltinKind, label: string, topic: string
 ]
 
 export function parseChannel(parts: string[] | string | undefined): Channel | null {
-  const [kind, arg] = Array.isArray(parts) ? parts : parts ? [parts] : []
+  const [kind, arg, sub] = Array.isArray(parts) ? parts : parts ? [parts] : []
   switch (kind) {
     case 'home':
     case 'local':
@@ -36,6 +41,10 @@ export function parseChannel(parts: string[] | string | undefined): Channel | nu
     case 'notifications':
     case 'explore':
       return { kind }
+    case 'pages':
+      return arg === 'new' ? { kind: 'page-edit', id: null } : arg ? null : { kind }
+    case 'page':
+      return !arg ? null : sub === 'edit' ? { kind: 'page-edit', id: arg } : { kind, id: arg }
     case 'channel':
     case 'antenna':
     case 'clip':
@@ -61,6 +70,10 @@ export function channelPath(accountKey: string, ch: Channel): string {
       return `${base}/${ch.kind}/${ch.id}`
     case 'tag':
       return `${base}/tag/${encodeURIComponent(ch.tag)}`
+    case 'page':
+      return `${base}/page/${ch.id}`
+    case 'page-edit':
+      return ch.id ? `${base}/page/${ch.id}/edit` : `${base}/pages/new`
     default:
       return `${base}/${ch.kind}`
   }
@@ -77,7 +90,10 @@ export function channelId(ch: Channel): string {
     case 'clip':
     case 'list':
     case 'user':
+    case 'page':
       return `${ch.kind}:${ch.id}`
+    case 'page-edit':
+      return `${ch.kind}:${ch.id ?? 'new'}`
     case 'tag':
       return `tag:${ch.tag.toLowerCase()}`
     default:

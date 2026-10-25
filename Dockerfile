@@ -9,11 +9,13 @@ COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts
 
 COPY . .
-RUN npx nuxt prepare && npm run generate
+RUN npx nuxt prepare && npm run generate \
+ && node scripts/security-headers.mjs .output/public security-headers.conf
 
 # ---- runtime: nginx로 정적 파일 서빙 ----
 FROM nginx:1.30-alpine
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY --from=build /app/.output/public /usr/share/nginx/html
 
 EXPOSE 80

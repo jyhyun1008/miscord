@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import type { Account } from '~/composables/useAccounts'
-import type { Antenna, Clip, MisskeyChannel, Note, UserDetailed, UserList } from '~/types/misskey'
+import type { Antenna, Clip, DriveFile, MisskeyChannel, Note, UserDetailed, UserList } from '~/types/misskey'
 
 const props = defineProps<{ account: Account, channel: TimelineChannel }>()
 const emit = defineEmits<{ addTag: [] }>()
 
 const GROUP_MS = 5 * 60 * 1000
 
-const ui = useUi()
 const api = useApi(props.account)
 const toast = useToast()
 const { prefs, addTag } = usePrefs(props.account.key)
@@ -16,7 +15,10 @@ onMounted(mod.load)
 
 const scroller = ref<HTMLElement | null>(null)
 const inner = ref<HTMLElement | null>(null)
-const composer = ref<{ focus: () => void } | null>(null)
+const composer = ref<{
+  focus: () => void
+  setDraft: (d: { text: string, cw: string | null, files: DriveFile[], visibility: 'public' | 'home' | 'followers', poll?: Note['poll'] }) => void
+} | null>(null)
 const stick = ref(true)
 const unread = ref(0)
 
@@ -24,7 +26,13 @@ const replyTo = ref<Note | null>(null)
 const quoteOf = ref<Note | null>(null)
 const picker = ref<{ note: Note, anchor: HTMLElement } | null>(null)
 
+// While a note menu or the reaction picker is open, auto-scrolling would move it
+// out from under the pointer (and close it), so new notes only bump the unread banner.
+const menuOpen = ref(false)
+const holdScroll = computed(() => menuOpen.value || !!picker.value)
+
 const tl = useTimeline(props.account, props.channel, () => {
+  if (holdScroll.value) stick.value = false
   if (stick.value) nextTick(toBottom)
   else unread.value++
 })
@@ -122,6 +130,31 @@ function onScroll() {
   if (el.scrollTop < 400) loadOlderKeepingPosition()
 }
 
+const JUMP_MAX_PAGES = 10
+
+function findNoteEl(noteId: string) {
+  return inner.value?.querySelector<HTMLElement>(`[data-note-id="${CSS.escape(noteId)}"]`) ?? null
+}
+
+async function jumpToNote(noteId: string) {
+  let el = findNoteEl(noteId)
+  // The original may be further back: page in older notes until it shows up
+  for (let i = 0; !el && i < JUMP_MAX_PAGES && !tl.done.value && !tl.error.value; i++) {
+    await loadOlderKeepingPosition()
+    el = findNoteEl(noteId)
+  }
+  if (!el) {
+    toast.show('이 채널에서 원노트를 찾을 수 없어요')
+    return
+  }
+  stick.value = false
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  el.classList.remove('flash')
+  void el.offsetWidth // restart the animation
+  el.classList.add('flash')
+  setTimeout(() => el.classList.remove('flash'), 1600)
+}
+
 function jumpToPresent() {
   unread.value = 0
   stick.value = true
@@ -132,7 +165,7 @@ function jumpToPresent() {
 let ro: ResizeObserver | null = null
 onMounted(() => {
   ro = new ResizeObserver(() => {
-    if (stick.value) toBottom()
+    if (stick.value && !holdScroll.value) toBottom()
   })
   if (inner.value) ro.observe(inner.value)
 })
@@ -190,6 +223,38 @@ async function unreact(note: Note) {
   }
 }
 
+// Notes carry no "renoted by me" flag, so it's looked up on demand and kept on the note
+const renoteChecks = new Map<string, Promise<boolean>>()
+const renoteBusy = new Set<string>()
+
+async function myRenoteIds(noteId: string) {
+  const rows = await api<Note[]>('notes/renotes', { noteId, userId: me, limit: 10 })
+  return rows.filter(r => r.userId === me && isPureRenote(r)).map(r => r.id)
+}
+
+function setRenoted(noteId: string, renoted: boolean, delta = 0) {
+  tl.patch(noteId, (n) => {
+    n.myRenoted = renoted
+    n.renoteCount = Math.max(0, n.renoteCount + delta)
+  })
+}
+
+function checkRenoted(note: Note): Promise<boolean> {
+  if (note.myRenoted != null) return Promise.resolve(note.myRenoted)
+  if (note.renoteCount <= 0) return Promise.resolve(false)
+  let check = renoteChecks.get(note.id)
+  if (!check) {
+    check = myRenoteIds(note.id)
+      .then((ids) => {
+        setRenoted(note.id, ids.length > 0)
+        return ids.length > 0
+      })
+      .finally(() => renoteChecks.delete(note.id))
+    renoteChecks.set(note.id, check)
+  }
+  return check
+}
+
 provide(NOTE_ACTIONS, {
   reply(note) {
     quoteOf.value = null
@@ -201,15 +266,34 @@ provide(NOTE_ACTIONS, {
     quoteOf.value = note
     composer.value?.focus()
   },
-  async renote(note) {
+  async toggleRenote(note) {
+    if (renoteBusy.has(note.id)) return
+    renoteBusy.add(note.id)
     try {
-      await api('notes/create', { renoteId: note.id, visibility: note.visibility === 'home' ? 'home' : prefs.value.defaultVisibility })
-      toast.show('리노트했습니다')
+      if (await checkRenoted(note)) {
+        // Misskey allows several renotes of one note; this client keeps it to one, so take back all of them
+        const ids = await myRenoteIds(note.id)
+        for (const id of ids) {
+          await api('notes/delete', { noteId: id })
+          tl.remove(id)
+        }
+        setRenoted(note.id, false, -ids.length)
+        toast.show('리노트를 취소했어요')
+      }
+      else {
+        await api('notes/create', { renoteId: note.id, visibility: note.visibility === 'home' ? 'home' : prefs.value.defaultVisibility })
+        setRenoted(note.id, true, 1)
+        toast.show('리노트했습니다')
+      }
     }
     catch (e) {
       toast.error(e)
     }
+    finally {
+      renoteBusy.delete(note.id)
+    }
   },
+  checkRenoted,
   async toggleReaction(note, reaction) {
     if (note.myReaction === normalizeReaction(reaction)) await unreact(note)
     else await react(note, reaction)
@@ -226,6 +310,25 @@ provide(NOTE_ACTIONS, {
       toast.error(e)
     }
   },
+  async redraft(note) {
+    if (note.visibility === 'specified') return
+    try {
+      await api('notes/delete', { noteId: note.id })
+      tl.remove(note.id)
+    }
+    catch (e) {
+      toast.error(e)
+      return
+    }
+    // Drive files outlive the note, so they can be attached again as-is
+    replyTo.value = note.reply ?? null
+    quoteOf.value = note.renote ?? null
+    composer.value?.setDraft({ text: note.text ?? '', cw: note.cw, files: note.files, visibility: note.visibility, poll: note.poll })
+  },
+  jumpTo: jumpToNote,
+  setMenuOpen(open) {
+    menuOpen.value = open
+  },
 })
 
 function onPicked(reaction: string) {
@@ -235,6 +338,10 @@ function onPicked(reaction: string) {
 }
 
 const live = computed(() => !!streamRequest(props.channel))
+// Detail views opened from somewhere else get a back button (fallback when there's no history)
+const backTo = computed<Channel | null>(() =>
+  props.channel.kind === 'clip' ? { kind: 'clips' } : props.channel.kind === 'user' ? { kind: 'home' } : null,
+)
 
 async function onPosted(note: Note) {
   replyTo.value = null
@@ -262,25 +369,16 @@ function saveTag() {
 
 <template>
   <div class="chat">
-    <header class="head">
-      <button class="icon-btn nav-btn" title="채널 목록" @click="ui.navOpen = true">
-        <Icon name="menu" />
-      </button>
-      <Icon :name="meta.icon" :size="22" class="ch-icon" />
-      <h1 class="title">{{ meta.title }}</h1>
-      <span v-if="meta.topic" class="divider" />
-      <span class="topic">{{ meta.topic }}</span>
-      <span class="spacer" />
-      <span v-if="live && tl.streamState.value !== 'open'" class="live off" title="실시간 연결 끊김 — 재연결 중">
-        재연결 중…
-      </span>
-      <button v-if="props.channel.kind === 'tag' && !tagSaved" class="btn small" @click="saveTag">
-        <Icon name="plus" :size="14" /> 채널로 추가
-      </button>
-      <button class="icon-btn" :class="{ on: ui.membersOpen }" title="멤버 목록" @click="ui.membersOpen = !ui.membersOpen">
-        <Icon name="users" />
-      </button>
-    </header>
+    <ViewHeader :icon="meta.icon" :title="meta.title" :topic="meta.topic" :back="backTo">
+      <template #actions>
+        <span v-if="live && tl.streamState.value !== 'open'" class="live off" title="실시간 연결 끊김 — 재연결 중">
+          재연결 중…
+        </span>
+        <button v-if="props.channel.kind === 'tag' && !tagSaved" class="btn small" @click="saveTag">
+          <Icon name="plus" :size="14" /> 채널로 추가
+        </button>
+      </template>
+    </ViewHeader>
 
     <div ref="scroller" class="scroller" @scroll.passive="onScroll">
       <div ref="inner" class="inner">
@@ -297,7 +395,7 @@ function saveTag() {
         </div>
         <div v-if="tl.error.value" class="error">
           <Icon name="warn" :size="18" /> {{ tl.error.value }}
-          <button class="btn small" @click="loadOlderKeepingPosition">다시 시도</button>
+          <button @click="loadOlderKeepingPosition">다시 시도</button>
         </div>
 
         <template v-for="item in items" :key="item.note.id">
@@ -344,63 +442,9 @@ function saveTag() {
   height: 100%;
   min-height: 0;
 }
-.head {
-  height: var(--header-h);
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 8px 0 16px;
-  border-bottom: 1px solid var(--border);
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
-  min-width: 0;
-}
-.nav-btn {
-  display: none;
-  margin-left: -8px;
-}
-.ch-icon {
-  color: var(--fg-faint);
-}
-.title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--fg-strong);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 40%;
-}
-.divider {
-  width: 1px;
-  height: 24px;
-  margin: 0 4px;
-  background: var(--bg-active);
-}
-.topic {
-  font-size: 14px;
-  color: var(--fg-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-.spacer {
-  flex: 1;
-}
 .live.off {
   font-size: 12px;
   color: var(--danger);
-  white-space: nowrap;
-}
-.icon-btn.on {
-  color: var(--fg-strong);
-}
-.btn.small {
-  height: 28px;
-  padding: 0 10px;
-  font-size: 13px;
   white-space: nowrap;
 }
 .scroller {
@@ -484,6 +528,9 @@ function saveTag() {
   color: var(--danger);
   font-size: 14px;
 }
+.error button {
+  text-decoration: underline;
+}
 .date {
   position: relative;
   display: flex;
@@ -517,19 +564,5 @@ function saveTag() {
   font-weight: 600;
   box-shadow: var(--shadow);
   z-index: 5;
-}
-
-@media (max-width: 768px) {
-  .nav-btn {
-    display: inline-flex;
-  }
-  .divider,
-  .topic {
-    display: none;
-  }
-  .title {
-    max-width: none;
-    flex: 1;
-  }
 }
 </style>

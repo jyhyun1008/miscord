@@ -47,6 +47,7 @@ function isActive(ch: Channel) {
   return sameChannel(ch, props.channel)
 }
 const clipsActive = computed(() => props.channel?.kind === 'clips' || props.channel?.kind === 'clip')
+const pagesActive = computed(() => ['pages', 'page', 'page-edit'].includes(props.channel?.kind ?? ''))
 
 function go(ch: Channel) {
   ui.navOpen = false
@@ -97,15 +98,6 @@ async function onRemoveTag(tag: string) {
             <span class="label">{{ b.label }}</span>
           </button>
         </template>
-        <button
-          v-if="!prefs.collapsed.timelines || clipsActive"
-          class="ch"
-          :class="{ active: clipsActive }"
-          @click="go({ kind: 'clips' })"
-        >
-          <Icon name="clip" :size="18" />
-          <span class="label">클립</span>
-        </button>
       </section>
 
       <!-- Misskey channels, antennas, lists -->
@@ -120,7 +112,7 @@ async function onRemoveTag(tag: string) {
             class="add"
             :href="`https://${props.account.host}${sec.addHref}`"
             target="_blank"
-            rel="noopener"
+            rel="noopener noreferrer"
             :title="sec.addTitle"
           >
             <Icon name="plus" :size="16" />
@@ -147,9 +139,9 @@ async function onRemoveTag(tag: string) {
             </span>
           </div>
         </template>
-        <p v-if="sec.key === 'channels' && channelsDenied && !isCollapsed('channels')" class="empty" @click="startMiAuth(props.account.host)">
-          채널을 보려면 다시 로그인해서 권한을 추가해 주세요
-        </p>
+        <ReloginHint v-if="sec.key === 'channels' && channelsDenied && !isCollapsed('channels')" class="side-hint" compact :host="props.account.host">
+          채널을 보려면
+        </ReloginHint>
       </section>
 
       <!-- Hashtags -->
@@ -182,6 +174,18 @@ async function onRemoveTag(tag: string) {
             </span>
           </div>
         </template>
+      </section>
+
+      <!-- My collections, below a divider like Discord's bottom-of-list extras -->
+      <section class="bottom">
+        <button class="ch" :class="{ active: clipsActive }" @click="go({ kind: 'clips' })">
+          <Icon name="clip" :size="18" />
+          <span class="label">클립</span>
+        </button>
+        <button class="ch" :class="{ active: pagesActive }" @click="go({ kind: 'pages' })">
+          <Icon name="page" :size="18" />
+          <span class="label">페이지</span>
+        </button>
       </section>
     </div>
 
@@ -247,6 +251,10 @@ section.top {
   margin-top: 0;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
+}
+section.bottom {
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
 }
 .ch.unread {
   color: var(--fg-strong);
@@ -356,17 +364,9 @@ a.add {
 .ch:focus-within .tools {
   display: flex;
 }
-.empty {
+.side-hint {
   margin: 2px 0;
   padding: 6px 8px;
-  font-size: 13px;
-  color: var(--fg-faint);
-  cursor: pointer;
-  border-radius: 4px;
-}
-.empty:hover {
-  color: var(--accent);
-  background: var(--bg-hover);
 }
 .me {
   flex-shrink: 0;

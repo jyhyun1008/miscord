@@ -24,6 +24,7 @@ export const MIAUTH_PERMISSIONS = [
   'read:reactions',
   'write:reactions',
   'write:notes',
+  'read:drive',
   'write:drive',
   'read:favorites',
   'write:favorites',
@@ -31,6 +32,10 @@ export const MIAUTH_PERMISSIONS = [
   'read:channels',
   'read:notifications',
   'write:notifications',
+  'read:pages',
+  'write:pages',
+  'read:page-likes',
+  'write:page-likes',
 ]
 
 export function useAccounts() {

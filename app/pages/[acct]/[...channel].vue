@@ -44,6 +44,9 @@ watch(() => route.fullPath, () => {
     <ClipsView v-if="channel?.kind === 'clips'" :key="`${account.key}:clips`" :account="account" />
     <NotificationsView v-else-if="channel?.kind === 'notifications'" :key="`${account.key}:notifications`" :account="account" />
     <ExploreView v-else-if="channel?.kind === 'explore'" :key="`${account.key}:explore`" :account="account" />
+    <PagesView v-else-if="channel?.kind === 'pages'" :key="`${account.key}:pages`" :account="account" />
+    <PageView v-else-if="channel?.kind === 'page'" :key="`${account.key}:${channelId(channel)}`" :account="account" :page-id="channel.id" />
+    <PageEditor v-else-if="channel?.kind === 'page-edit'" :key="`${account.key}:${channelId(channel)}`" :account="account" :page-id="channel.id" />
     <ChatView
       v-else-if="channel"
       :key="`${account.key}:${channelId(channel)}`"

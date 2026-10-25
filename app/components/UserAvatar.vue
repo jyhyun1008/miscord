@@ -2,6 +2,9 @@
 import type { UserLite } from '~/types/misskey'
 
 const props = defineProps<{ user: UserLite }>()
+const portraitFailed = ref(false)
+const portraitUrl = computed(() => portraitFailed.value ? '/icons/miscord.svg' : props.user.avatarUrl || '/icons/miscord.svg')
+watch(() => props.user.avatarUrl, () => { portraitFailed.value = false })
 const root = ref<HTMLElement | null>(null)
 const visible = ref(false)
 const decorations = useAvatarDecorations(() => props.user, visible)
@@ -28,7 +31,7 @@ function finite(value: number | undefined) {
 
 <template>
   <span ref="root" class="user-avatar">
-    <img class="portrait" :src="props.user.avatarUrl || undefined" alt="" loading="lazy" draggable="false">
+    <img class="portrait" :src="portraitUrl" alt="" loading="lazy" draggable="false" @error="portraitFailed = true">
     <img
       v-for="(decoration, index) in shown"
       :key="`${decoration.url}:${index}`"

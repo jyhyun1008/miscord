@@ -11,17 +11,41 @@ const { groupOf } = usePrefs(props.account.key)
 const mod = useModeration(props.account)
 const menuOpen = ref(false)
 const clipMenu = ref(false)
-watch(menuOpen, () => (clipMenu.value = false))
+watch(menuOpen, (open) => {
+  clipMenu.value = false
+  actions.setMenuOpen(open)
+})
+onBeforeUnmount(() => {
+  if (menuOpen.value) actions.setMenuOpen(false)
+})
+
+// Open the menu upward when there isn't room below it inside the timeline
+const menuEl = ref<HTMLElement | null>(null)
+const menuUp = ref(false)
+watch([menuOpen, clipMenu], async () => {
+  await nextTick()
+  const menu = menuEl.value
+  const toolbar = menu?.parentElement
+  if (!menu || !toolbar) return
+  const bounds = (toolbar.closest('.scroller') ?? document.documentElement).getBoundingClientRect()
+  const bar = toolbar.getBoundingClientRect()
+  const below = Math.min(bounds.bottom, window.innerHeight) - bar.bottom
+  const above = bar.top - Math.max(bounds.top, 0)
+  const need = menu.offsetHeight + 4
+  menuUp.value = below < need && above > below
+})
 
 const renoter = computed(() => (isPureRenote(props.note) ? props.note.user : null))
-const isMyRenote = computed(() => !!renoter.value && props.note.userId === props.account.user.id)
 const n = computed(() => appearNote(props.note))
+const canRenote = computed(() => n.value.visibility === 'public' || n.value.visibility === 'home')
 const isMine = computed(() => n.value.userId === props.account.user.id)
 const mentionsMe = computed(() =>
   !isMine.value && (n.value.mentions?.includes(props.account.user.id) || n.value.reply?.userId === props.account.user.id),
 )
 const visibilityIcon = computed(() => ({ public: '', home: 'home', followers: 'lock', specified: 'at' })[n.value.visibility])
-const originalUrl = computed(() => safeHttpUrl(n.value.url) ?? safeHttpUrl(n.value.uri) ?? `https://${props.account.host}/notes/${n.value.id}`)
+const detailUrl = computed(() => `https://${props.account.host}/notes/${n.value.id}`)
+// Only remote notes have a separate original on another server
+const originalUrl = computed(() => (n.value.user.host ? safeHttpUrl(n.value.url) ?? safeHttpUrl(n.value.uri) : null))
 
 const nameColor = (userId: string) => {
   const c = groupOf(userId)?.color
@@ -41,7 +65,18 @@ function snippet(note: Note) {
 
 async function copyLink() {
   menuOpen.value = false
-  await navigator.clipboard?.writeText(`https://${props.account.host}/notes/${n.value.id}`)
+  await navigator.clipboard?.writeText(detailUrl.value)
+}
+
+async function copyText() {
+  menuOpen.value = false
+  try {
+    await navigator.clipboard.writeText(n.value.text ?? '')
+    toast.show('노트 내용을 복사했어요')
+  }
+  catch (e) {
+    toast.error(e)
+  }
 }
 
 async function onMute() {
@@ -62,16 +97,28 @@ function onDelete() {
   if (confirm('이 노트를 삭제할까요?')) actions.remove(n.value)
 }
 
-function onUndoRenote() {
+function onRedraft() {
   menuOpen.value = false
-  if (isMyRenote.value && confirm('이 리노트를 취소할까요?')) actions.remove(props.note)
+  if (confirm('이 노트를 삭제하고 다시 편집할까요?\n받은 반응과 리노트는 사라져요.')) actions.redraft(n.value)
+}
+
+function onToggleRenote() {
+  menuOpen.value = false
+  actions.toggleRenote(n.value)
+}
+
+// Look up whether we've renoted it before the pill, toolbar or menu needs to show it
+function onHover() {
+  if (canRenote.value) actions.checkRenoted(n.value).catch(() => {})
 }
 </script>
 
 <template>
   <article
     class="msg"
+    :data-note-id="n.id"
     :class="{ grouped: props.grouped && !renoter, mention: mentionsMe, 'menu-open': menuOpen }"
+    @mouseenter="onHover"
     @mouseleave="menuOpen = false"
   >
     <!-- Renote system line -->
@@ -86,10 +133,10 @@ function onUndoRenote() {
     </div>
 
     <!-- Reply reference -->
-    <div v-if="n.reply" class="replyref">
+    <div v-if="n.reply" class="replyref" title="원노트로 이동" @click="actions.jumpTo(n.reply.id)">
       <span class="spine" />
-      <UserAvatar class="reply-avatar" :user="n.reply.user" @click="openProfile($event, n.reply.user.id)" />
-      <button class="rname" :style="nameColor(n.reply.user.id)" @click="openProfile($event, n.reply.user.id)">
+      <UserAvatar class="reply-avatar" :user="n.reply.user" @click.stop="openProfile($event, n.reply.user.id)" />
+      <button class="rname" :style="nameColor(n.reply.user.id)" @click.stop="openProfile($event, n.reply.user.id)">
         <MfmText :text="displayName(n.reply.user)" :emojis="n.reply.user.emojis" plain />
       </button>
       <span class="rtext">{{ snippet(n.reply) }}</span>
@@ -122,6 +169,8 @@ function onUndoRenote() {
         <NoteReactions
           :note="n"
           :host="props.account.host"
+          :can-renote="canRenote"
+          @renote="actions.toggleRenote(n)"
           @toggle="actions.toggleReaction(n, $event)"
           @add="actions.pickReaction(n, $event)"
         />
@@ -137,9 +186,10 @@ function onUndoRenote() {
         <Icon name="reply" :size="18" />
       </button>
       <button
-        v-if="n.visibility === 'public' || n.visibility === 'home'"
-        title="리노트"
-        @click="actions.renote(n)"
+        v-if="canRenote"
+        :class="{ on: n.myRenoted }"
+        :title="n.myRenoted ? '리노트 취소' : '리노트'"
+        @click="actions.toggleRenote(n)"
       >
         <Icon name="renote" :size="18" />
       </button>
@@ -150,18 +200,24 @@ function onUndoRenote() {
         <Icon name="more" :size="18" />
       </button>
 
-      <div v-if="menuOpen && clipMenu" class="menu">
+      <div v-if="menuOpen && clipMenu" ref="menuEl" class="menu" :class="{ up: menuUp }">
         <NoteClipMenu :account="props.account" :note="n" @back="clipMenu = false" />
       </div>
-      <div v-else-if="menuOpen" class="menu">
+      <div v-else-if="menuOpen" ref="menuEl" class="menu" :class="{ up: menuUp }">
         <button @click="clipMenu = true">
           <span>클립에 추가</span><Icon name="clip" :size="16" />
+        </button>
+        <button v-if="n.text" @click="copyText">
+          <span>내용 복사</span><Icon name="copy" :size="16" />
         </button>
         <button @click="copyLink">
           <span>링크 복사</span><Icon name="link" :size="16" />
         </button>
-        <a :href="originalUrl" target="_blank" rel="noopener noreferrer" @click="menuOpen = false">
-          <span>원문 열기</span><Icon name="external" :size="16" />
+        <a :href="detailUrl" target="_blank" rel="noopener noreferrer" @click="menuOpen = false">
+          <span>노트 상세보기</span><Icon name="external" :size="16" />
+        </a>
+        <a v-if="originalUrl" :href="originalUrl" target="_blank" rel="noopener noreferrer" @click="menuOpen = false">
+          <span>원문 열기</span><Icon name="global" :size="16" />
         </a>
         <template v-if="!isMine">
           <button @click="onMute">
@@ -171,8 +227,14 @@ function onUndoRenote() {
             <span>유저 차단</span><Icon name="block" :size="16" />
           </button>
         </template>
-        <button v-if="isMyRenote" class="danger" @click="onUndoRenote">
+        <button v-if="canRenote && n.myRenoted" class="danger" @click="onToggleRenote">
           <span>리노트 취소</span><Icon name="trash" :size="16" />
+        </button>
+        <button v-else-if="canRenote" @click="onToggleRenote">
+          <span>리노트</span><Icon name="renote" :size="16" />
+        </button>
+        <button v-if="isMine && n.visibility !== 'specified'" class="danger" @click="onRedraft">
+          <span>삭제 후 편집</span><Icon name="edit" :size="16" />
         </button>
         <button v-if="isMine" class="danger" @click="onDelete">
           <span>노트 삭제</span><Icon name="trash" :size="16" />
@@ -194,6 +256,15 @@ function onUndoRenote() {
 .msg:hover,
 .msg.menu-open {
   background: var(--bg-hover);
+}
+.msg.flash {
+  animation: flash 1.6s ease-out;
+}
+@keyframes flash {
+  0%, 30% {
+    background: var(--mention-bg);
+    box-shadow: inset 2px 0 0 var(--accent);
+  }
 }
 .msg.mention {
   background: var(--mention-bg);
@@ -329,6 +400,10 @@ function onUndoRenote() {
   font-size: 13px;
   color: var(--fg-muted);
   min-width: 0;
+  cursor: pointer;
+}
+.replyref:hover .rtext {
+  color: var(--fg);
 }
 .spine {
   position: absolute;
@@ -392,6 +467,9 @@ function onUndoRenote() {
   color: var(--fg);
   background: var(--bg-hover);
 }
+.toolbar > button.on {
+  color: var(--accent);
+}
 .menu {
   position: absolute;
   right: 0;
@@ -403,6 +481,10 @@ function onUndoRenote() {
   box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
+}
+.menu.up {
+  top: auto;
+  bottom: calc(100% + 4px);
 }
 .menu > * {
   display: flex;

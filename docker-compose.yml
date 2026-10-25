@@ -1,6 +1,6 @@
 services:
   miscord:
-    image: ${DOCKERHUB_USER:-jyhyun1008}/miscord:${MISCORD_TAG:-latest}
+    image: jyhyun1008/miscord:latest
     container_name: miscord
     restart: unless-stopped
     ports:

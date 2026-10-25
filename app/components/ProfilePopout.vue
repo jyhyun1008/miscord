@@ -177,7 +177,7 @@ onBeforeUnmount(() => {
       <div v-if="error" class="pad err">{{ error }}</div>
       <div v-else-if="!user" class="pad muted">불러오는 중…</div>
       <template v-else>
-        <div class="banner" :style="user.bannerUrl ? { backgroundImage: `url(${user.bannerUrl})` } : {}" />
+        <div class="banner" :style="safeHttpUrl(user.bannerUrl) ? { backgroundImage: `url(${JSON.stringify(safeHttpUrl(user.bannerUrl))})` } : {}" />
         <UserAvatar class="avatar" :user="user" />
         <div class="actions">
           <button class="icon-btn" :class="{ on: isPinned }" :title="isPinned ? '고정 해제' : '멤버 목록에 고정'" @click="togglePin(user.id)">

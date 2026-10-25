@@ -177,7 +177,7 @@ function onScroll(e: Event) {
       />
 
       <p v-if="loading" class="muted">불러오는 중…</p>
-      <p v-else-if="error" class="err">{{ error }} <button @click="loadMore">재시도</button></p>
+      <p v-else-if="error" class="err">{{ error }} <button @click="loadMore">다시 시도</button></p>
       <p v-else-if="done && !following.length" class="muted">아직 팔로우한 사람이 없어요.</p>
 
       <template v-if="muted.length">
@@ -196,10 +196,9 @@ function onScroll(e: Event) {
           />
         </template>
       </template>
-      <p v-if="mod.readDenied.value" class="hint">
-        뮤트·차단 목록을 읽을 권한이 없어 뮤트한 사람도 함께 표시돼요.
-        <button @click="startMiAuth(props.account.host)">다시 로그인해서 권한 추가</button>
-      </p>
+      <ReloginHint v-if="mod.readDenied.value" class="hint" compact :host="props.account.host">
+        뮤트·차단 목록을 읽을 권한이 없어 뮤트한 사람도 함께 표시돼요. 숨기려면
+      </ReloginHint>
     </div>
   </div>
 </template>
@@ -266,17 +265,11 @@ h3 {
 .err {
   color: var(--danger);
 }
-.err button,
-.hint button {
+.err button {
   text-decoration: underline;
 }
 .hint {
   margin: 16px 8px 0;
-  font-size: 12px;
-  color: var(--fg-faint);
-}
-.hint button {
-  color: var(--fg-link);
 }
 h3.fold {
   cursor: pointer;

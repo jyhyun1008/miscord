@@ -4,7 +4,6 @@ import type { Clip, Note } from '~/types/misskey'
 
 const props = defineProps<{ account: Account }>()
 
-const ui = useUi()
 const api = useApi(props.account)
 const toast = useToast()
 const { clips, load: loadClips, create: createClip } = useClips(props.account)
@@ -17,6 +16,13 @@ const creating = ref(false)
 const newName = ref('')
 const newPublic = ref(false)
 const busy = ref(false)
+const q = ref('')
+
+const shown = computed(() => {
+  const s = q.value.trim().toLowerCase()
+  if (!s || !clips.value) return clips.value ?? []
+  return clips.value.filter(c => [c.name, c.description].some(v => v?.toLowerCase().includes(s)))
+})
 
 async function load() {
   error.value = ''
@@ -75,24 +81,18 @@ function thumb(n: Note) {
 
 <template>
   <div class="clips">
-    <header class="head">
-      <button class="icon-btn nav-btn" title="채널 목록" @click="ui.navOpen = true">
-        <Icon name="menu" />
-      </button>
-      <Icon name="clip" :size="22" class="ch-icon" />
-      <h1 class="title">클립</h1>
-      <span class="divider" />
-      <span class="topic">내가 모아 둔 노트</span>
-      <span class="spacer" />
-      <button class="btn small" @click="creating = !creating">
-        <Icon name="plus" :size="14" /> 새 클립
-      </button>
-      <button class="icon-btn" :class="{ on: ui.membersOpen }" title="멤버 목록" @click="ui.membersOpen = !ui.membersOpen">
-        <Icon name="users" />
-      </button>
-    </header>
+    <ViewHeader icon="clip" title="클립" topic="내가 모아 둔 노트" />
 
     <div class="scroll">
+      <div class="toolbar">
+        <div class="search">
+          <input v-model="q" class="field" type="search" placeholder="클립 검색" aria-label="클립 검색">
+        </div>
+        <button class="btn" :class="{ on: creating }" @click="creating = !creating">
+          <Icon name="plus" :size="16" /> 새 클립
+        </button>
+      </div>
+
       <form v-if="creating" class="card new" @submit.prevent="create">
         <input v-model="newName" class="field" placeholder="클립 이름" maxlength="100" autofocus>
         <label class="check"><input v-model="newPublic" type="checkbox"> 공개</label>
@@ -101,11 +101,17 @@ function thumb(n: Note) {
 
       <p v-if="error" class="err">{{ error }} <button @click="load">다시 시도</button></p>
       <p v-else-if="!clips" class="muted">불러오는 중…</p>
-      <p v-else-if="!clips.length && !creating" class="muted">아직 클립이 없어요.</p>
+      <EmptyState v-else-if="!clips.length && !creating" icon="clip">
+        아직 클립이 없어요.
+        <template #action>
+          <button class="btn" @click="creating = true">첫 클립 만들기</button>
+        </template>
+      </EmptyState>
+      <EmptyState v-else-if="!shown.length && q.trim()" icon="clip">"{{ q.trim() }}"에 맞는 클립이 없어요.</EmptyState>
 
-      <div v-if="clips?.length" class="grid">
+      <div v-if="shown.length" class="grid">
         <article
-          v-for="c in clips"
+          v-for="c in shown"
           :key="c.id"
           class="card"
           role="button"
@@ -144,61 +150,29 @@ function thumb(n: Note) {
   height: 100%;
   min-height: 0;
 }
-.head {
-  height: var(--header-h);
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 8px 0 16px;
-  border-bottom: 1px solid var(--border);
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
-  min-width: 0;
-}
-.nav-btn {
-  display: none;
-  margin-left: -8px;
-}
-.ch-icon {
-  color: var(--fg-faint);
-}
-.title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--fg-strong);
-  white-space: nowrap;
-}
-.divider {
-  width: 1px;
-  height: 24px;
-  margin: 0 4px;
-  background: var(--bg-active);
-}
-.topic {
-  font-size: 14px;
-  color: var(--fg-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
 .spacer {
   flex: 1;
-}
-.icon-btn.on {
-  color: var(--fg-strong);
-}
-.btn.small {
-  height: 28px;
-  padding: 0 10px;
-  font-size: 13px;
-  white-space: nowrap;
 }
 .scroll {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
+}
+/* Same toolbar as the page gallery */
+.toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.search {
+  flex: 1;
+  min-width: 0;
+}
+.toolbar .btn {
+  white-space: nowrap;
 }
 .grid {
   display: grid;
@@ -330,18 +304,5 @@ function thumb(n: Note) {
 }
 .err button {
   text-decoration: underline;
-}
-
-@media (max-width: 768px) {
-  .nav-btn {
-    display: inline-flex;
-  }
-  .divider,
-  .topic {
-    display: none;
-  }
-  .title {
-    flex: 1;
-  }
 }
 </style>

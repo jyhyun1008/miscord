@@ -89,6 +89,10 @@ async function submit() {
   color: var(--accent);
   align-self: center;
 }
+.logo img {
+  display: block;
+  border-radius: 16px;
+}
 h1 {
   margin: 8px 0 4px;
   text-align: center;

@@ -71,6 +71,8 @@ export interface Note {
   reactionEmojis?: Record<string, string>
   emojis?: Record<string, string>
   myReaction?: string | null
+  /** Client-side: whether we've renoted it (undefined = not checked yet). */
+  myRenoted?: boolean
   fileIds: string[]
   files: DriveFile[]
   mentions?: string[]
@@ -147,4 +149,46 @@ export interface Following {
   id: string
   followeeId: string
   followee: UserDetailed
+}
+
+/** Misskey Page content block. Current servers emit text/section/image/note; older pages may hold others. */
+export interface PageBlock {
+  id: string
+  type: string
+  text?: string
+  title?: string
+  children?: PageBlock[]
+  fileId?: string | null
+  note?: string | null
+  detailed?: boolean
+  [key: string]: unknown
+}
+
+export interface Page {
+  id: string
+  createdAt: string
+  updatedAt: string
+  userId: string
+  user: UserLite
+  title: string
+  /** URL slug: https://{host}/@{username}/pages/{name} */
+  name: string
+  summary: string | null
+  content: PageBlock[]
+  variables: unknown[]
+  script: string
+  font: 'serif' | 'sans-serif'
+  alignCenter: boolean
+  hideTitleWhenPinned: boolean
+  eyeCatchingImageId: string | null
+  eyeCatchingImage: DriveFile | null
+  attachedFiles: DriveFile[]
+  likedCount: number
+  isLiked?: boolean
+}
+
+export interface DriveFolder {
+  id: string
+  name: string
+  parentId: string | null
 }

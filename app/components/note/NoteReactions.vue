@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { Note, UserLite } from '~/types/misskey'
 
-const props = defineProps<{ note: Note, host: string }>()
-const emit = defineEmits<{ toggle: [reaction: string], add: [anchor: HTMLElement] }>()
+const props = defineProps<{ note: Note, host: string, canRenote?: boolean }>()
+const emit = defineEmits<{ toggle: [reaction: string], renote: [], add: [anchor: HTMLElement] }>()
 
 const account = useCurrentAccount()
 const emojiStore = account.value ? useEmojis(account.value) : null
@@ -19,6 +19,8 @@ let holdTimer: ReturnType<typeof setTimeout> | undefined
 let touchPointer: { id: number, x: number, y: number } | null = null
 let suppressClick = false
 let pointerType = 'mouse'
+// Pseudo reaction key for the renote chip, so it shares the reactors tooltip
+const RENOTE = '\0renote'
 
 function cancelHold() {
   clearTimeout(holdTimer)
@@ -58,7 +60,8 @@ function onReactionClick(event: MouseEvent, reaction: string | null | undefined)
     event.stopPropagation()
     return
   }
-  if (reaction) emit('toggle', reaction)
+  if (reaction === RENOTE) emit('renote')
+  else if (reaction) emit('toggle', reaction)
 }
 
 function onOutsidePointerDown(event: PointerEvent) {
@@ -92,9 +95,10 @@ function showReactors(reaction: string) {
   const noteId = props.note.id
   hoverTimer = setTimeout(async () => {
     try {
-      const rows = await apiCall<{ user: UserLite }[]>(props.host, 'notes/reactions', {
-        noteId, type: reaction, limit: 30,
-      }, account.value?.host === props.host ? account.value.token : undefined)
+      const token = account.value?.host === props.host ? account.value.token : undefined
+      const rows = reaction === RENOTE
+        ? await apiCall<{ user: UserLite }[]>(props.host, 'notes/renotes', { noteId, limit: 30 }, token)
+        : await apiCall<{ user: UserLite }[]>(props.host, 'notes/reactions', { noteId, type: reaction, limit: 30 }, token)
       if (id === requestId) reactors.value = rows.map(row => row.user)
     }
     catch {
@@ -128,7 +132,45 @@ const items = computed(() =>
 </script>
 
 <template>
-  <div v-if="items.length" ref="root" class="reactions">
+  <div v-if="items.length || props.note.renoteCount > 0" ref="root" class="reactions">
+    <div
+      v-if="props.note.renoteCount > 0"
+      class="reaction-wrap"
+      @pointerenter="$event.pointerType === 'mouse' && showReactors(RENOTE)"
+      @pointerleave="$event.pointerType === 'mouse' && hideReactors()"
+      @focusin="onFocus(RENOTE)"
+      @focusout="hideReactors"
+      @keydown="onKeydown"
+    >
+      <button
+        class="pill renotes"
+        :class="{ mine: props.note.myRenoted }"
+        :aria-disabled="!props.canRenote"
+        :aria-pressed="props.canRenote ? !!props.note.myRenoted : undefined"
+        :aria-label="`리노트 ${props.note.renoteCount}회${props.canRenote ? (props.note.myRenoted ? ' (누르면 리노트 취소)' : ' (누르면 리노트)') : ''}`"
+        @pointerdown="onPointerDown($event, RENOTE)"
+        @pointermove="onPointerMove"
+        @pointerup="onPointerEnd"
+        @pointercancel="onPointerEnd"
+        @contextmenu.prevent
+        @click="onReactionClick($event, props.canRenote ? RENOTE : null)"
+      >
+        <Icon name="renote" :size="16" />
+        <span class="count">{{ props.note.renoteCount }}</span>
+      </button>
+      <div v-if="hovered === RENOTE" class="reactors" role="tooltip">
+        <div class="reactors-heading">리노트 · {{ props.note.renoteCount }}회</div>
+        <span v-if="loadingReactors" class="reactors-status">불러오는 중…</span>
+        <span v-else-if="reactorsError" class="reactors-status">리노트한 사용자를 불러오지 못했어요</span>
+        <template v-else>
+          <div v-for="user in reactors" :key="user.id" class="reactor">
+            <UserAvatar class="reactor-avatar" :user="user" />
+            <span class="reactor-name">{{ displayName(user) }} <span class="reactor-acct">{{ acct(user) }}</span></span>
+          </div>
+          <span v-if="!reactors.length" class="reactors-status">표시할 사용자가 없어요</span>
+        </template>
+      </div>
+    </div>
     <div
       v-for="r in items"
       :key="r.reaction"
@@ -229,6 +271,11 @@ const items = computed(() =>
 }
 .pill[aria-disabled="true"] {
   cursor: default;
+}
+.pill.renotes {
+  background: transparent;
+  border-color: var(--bg-active);
+  color: var(--accent);
 }
 .pill.mine {
   background: var(--accent-soft);

@@ -30,3 +30,15 @@
 ## 남은 구조적 한계
 
 토큰은 설계대로 localStorage에 남는다. 같은 origin에서 실행되는 스크립트가 접근할 수 있으므로 이번 URL 검증만으로 모든 XSS 경로에 대한 보호를 보장하지 않는다. 타임라인은 읽어 들인 노트 전체를 DOM에 유지하므로 장시간 사용과 대량 과거 조회에서는 가상 스크롤 도입을 검토할 여지가 있다. 이번 수정은 화면에 보이는 노트를 임의로 잘라내지 않는다.
+
+## 2차 점검 (2026-10-25)
+
+- 배포 nginx에 보안 헤더를 추가했다: CSP, `X-Frame-Options: DENY`/`frame-ancestors 'none'`(클릭재킹 방지), `nosniff`, `Referrer-Policy`, `Permissions-Policy`. Nuxt가 빌드마다 내용이 바뀌는 인라인 스크립트(런타임 설정, import map)를 넣으므로 `'unsafe-inline'` 대신 `scripts/security-headers.mjs`가 빌드 산출물에서 SHA-256 해시를 계산해 snippet을 생성한다. nginx의 `add_header`는 location에 하나라도 있으면 상위 설정을 상속하지 않으므로 각 location에서 include한다.
+- 프로필 배너를 CSS `url()`에 넣을 때 HTTP(S) 검증 후 따옴표로 감싼다. 서버 `themeColor`는 `CSS.supports('color', …)`를 통과할 때만 CSS 변수에 넣는다.
+- 새 탭 링크 두 곳에 `noreferrer`를 추가했다.
+- Composer의 중복된 드라이브 업로드 코드를 `uploadDriveFile`로 통합했다. 기존 코드는 오류 응답이 JSON이 아니면(예: 프록시의 413 HTML) 파싱 예외 메시지를 보여 줬다.
+- 타임라인이 노트를 받을 때마다 전체 목록을 다시 훑어 내 리노트를 찾던 것을 새로 들어온 노트만 보도록 바꿨다. 페이지 노트 임베드 캐시에 상한(200)을 두었다.
+
+검증: `npm test` 17개 통과, typecheck·generate 통과. 생성된 헤더로 로컬 nginx를 띄워 모든 location에 헤더가 붙는 것과 headless Chrome에서 로그인 화면이 정상 렌더링되는 것을 확인했다. 해시를 제거한 CSP에서는 앱이 부팅되지 않아 해시가 실제로 적용됨을 확인했다.
+
+남은 항목: Docker 이미지가 아닌 정적 호스팅에 `.output/public`을 올리면 위 헤더가 없으므로 호스팅 쪽에서 같은 헤더를 설정해야 한다. HSTS는 TLS를 종료하는 리버스 프록시에서 설정한다.

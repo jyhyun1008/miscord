@@ -35,6 +35,9 @@ export function useTimeline(account: Account, channel: TimelineChannel, onIncomi
       const id = appearNote(n).id
       if (!noteSubs.has(id)) noteSubs.set(id, stream.subNote(id))
     }
+    // Our own renotes on screen already tell us which notes we've renoted
+    const renoted = new Set(list.filter(n => n.userId === account.user.id && isPureRenote(n)).map(n => n.renote!.id))
+    for (const id of renoted) patch(id, (n) => { n.myRenoted = true })
   }
 
   async function loadOlder() {

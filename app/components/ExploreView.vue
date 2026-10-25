@@ -30,12 +30,16 @@ interface TrendTag {
   usersCount: number
 }
 
-const ui = useUi()
 const api = useApi(props.account)
 const profile = useProfilePopout()
 const { prefs, addTag } = usePrefs(props.account.key)
 
 const meta = ref<MetaDetail | null>(null)
+// The instance controls themeColor; only let a real color into the CSS variable
+const serverColor = computed(() => {
+  const c = meta.value?.themeColor
+  return c && CSS.supports('color', c) ? c : 'var(--accent)'
+})
 const stats = ref<Stats | null>(null)
 const online = ref<number | null>(null)
 const trends = ref<TrendTag[] | null>(null)
@@ -102,21 +106,11 @@ function reactionTotal(note: Note) {
 
 <template>
   <div class="explore">
-    <header class="head">
-      <button class="icon-btn nav-btn" title="채널 목록" @click="ui.navOpen = true">
-        <Icon name="menu" />
-      </button>
-      <Icon name="compass" :size="22" class="ch-icon" />
-      <h1 class="title">서버 훑어보기</h1>
-      <span class="spacer" />
-      <button class="icon-btn" :class="{ on: ui.membersOpen }" title="멤버 목록" @click="ui.membersOpen = !ui.membersOpen">
-        <Icon name="users" />
-      </button>
-    </header>
+    <ViewHeader icon="compass" title="서버 훑어보기" :topic="props.account.host" />
 
     <div class="scroll">
       <!-- Hero -->
-      <section class="hero" :style="{ '--server-color': meta?.themeColor ?? 'var(--accent)' }">
+      <section class="hero" :style="{ '--server-color': serverColor }">
         <div class="banner">
           <img v-if="banner" :src="banner" alt="" referrerpolicy="no-referrer">
         </div>
@@ -146,7 +140,7 @@ function reactionTotal(note: Note) {
         <section class="col-main">
           <h3 class="sec-title"><Icon name="star" :size="16" /> 인기 노트</h3>
           <p v-if="featured === null" class="muted">불러오는 중…</p>
-          <p v-else-if="!featured.length" class="muted">아직 인기 노트가 없어요.</p>
+          <EmptyState v-else-if="!featured.length" icon="star">아직 인기 노트가 없어요.</EmptyState>
           <article v-for="note in featured ?? []" :key="note.id" class="note-card">
             <header class="note-head">
               <UserAvatar class="note-avatar" :user="note.user" @click="profile.open({ userId: note.user.id }, $event.currentTarget as HTMLElement)" />
@@ -246,36 +240,8 @@ function reactionTotal(note: Note) {
   height: 100%;
   min-height: 0;
 }
-.head {
-  height: var(--header-h);
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 8px 0 16px;
-  border-bottom: 1px solid var(--border);
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
-  min-width: 0;
-}
-.nav-btn {
-  display: none;
-  margin-left: -8px;
-}
-.ch-icon {
-  color: var(--fg-faint);
-}
-.title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--fg-strong);
-  white-space: nowrap;
-}
 .spacer {
   flex: 1;
-}
-.icon-btn.on {
-  color: var(--fg-strong);
 }
 .scroll {
   flex: 1;
@@ -626,9 +592,6 @@ function reactionTotal(note: Note) {
   }
 }
 @media (max-width: 768px) {
-  .nav-btn {
-    display: inline-flex;
-  }
   .scroll {
     padding: 12px;
   }

@@ -212,6 +212,64 @@ img {
   background: var(--bg-hover);
 }
 
+.btn.small {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* View switcher (notification filter, page gallery tabs, editor write/preview) */
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.tab {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 15px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+.tab:hover {
+  background: var(--bg-hover);
+  color: var(--fg);
+}
+.tab.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* Icon + count toggle (page likes); same box as a note's reaction pill */
+.count-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 7px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: var(--bg-input);
+  color: var(--fg-muted);
+  font-size: 13px;
+  font-weight: 600;
+  transition: border-color 0.1s;
+}
+.count-pill:hover:not(:disabled) {
+  border-color: var(--fg-faint);
+}
+.count-pill:disabled {
+  cursor: default;
+}
+.count-pill.on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--fg-link);
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

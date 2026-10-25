@@ -7,7 +7,6 @@ const props = defineProps<{ account: Account }>()
 const PAGE = 30
 const MENTION_TYPES = ['mention', 'reply', 'quote']
 
-const ui = useUi()
 const api = useApi(props.account)
 const toast = useToast()
 const profile = useProfilePopout()
@@ -144,28 +143,17 @@ async function answer(n: MisskeyNotification, accept: boolean) {
 
 <template>
   <div class="notifs">
-    <header class="head">
-      <button class="icon-btn nav-btn" title="채널 목록" @click="ui.navOpen = true">
-        <Icon name="menu" />
-      </button>
-      <Icon name="bell" :size="22" class="ch-icon" />
-      <h1 class="title">알림</h1>
-      <div class="seg">
-        <button :class="{ on: filter === 'all' }" @click="filter = 'all'">전체</button>
-        <button :class="{ on: filter === 'mentions' }" @click="filter = 'mentions'">멘션</button>
-      </div>
-      <span class="spacer" />
-      <button class="icon-btn" :class="{ on: ui.membersOpen }" title="멤버 목록" @click="ui.membersOpen = !ui.membersOpen">
-        <Icon name="users" />
-      </button>
-    </header>
+    <ViewHeader icon="bell" title="알림" topic="멘션·답글·반응·팔로우 소식" />
 
     <div class="scroll" @scroll.passive="onScroll">
-      <p v-if="denied" class="muted relogin" @click="startMiAuth(props.account.host)">
-        알림을 보려면 <u>다시 로그인</u>해서 권한을 추가해 주세요
-      </p>
+      <nav class="tabs filter" role="tablist">
+        <button class="tab" role="tab" :aria-selected="filter === 'all'" :class="{ on: filter === 'all' }" @click="filter = 'all'">전체</button>
+        <button class="tab" role="tab" :aria-selected="filter === 'mentions'" :class="{ on: filter === 'mentions' }" @click="filter = 'mentions'">멘션</button>
+      </nav>
+
+      <ReloginHint v-if="denied" class="pad" :host="props.account.host">알림을 보려면</ReloginHint>
       <p v-else-if="error && !items.length" class="err">{{ error }} <button @click="load(true)">다시 시도</button></p>
-      <p v-else-if="!loading && !items.length" class="muted">아직 알림이 없어요.</p>
+      <EmptyState v-else-if="!loading && !items.length" icon="bell">{{ filter === 'mentions' ? '아직 멘션이 없어요.' : '아직 알림이 없어요.' }}</EmptyState>
 
       <article v-for="n in items" :key="n.id" class="item">
         <div class="avatar-wrap">
@@ -231,60 +219,19 @@ async function answer(n: MisskeyNotification, accept: boolean) {
   height: 100%;
   min-height: 0;
 }
-.head {
-  height: var(--header-h);
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 8px 0 16px;
-  border-bottom: 1px solid var(--border);
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
-  min-width: 0;
-}
-.nav-btn {
-  display: none;
-  margin-left: -8px;
-}
-.ch-icon {
-  color: var(--fg-faint);
-}
-.title {
-  margin: 0 8px 0 0;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--fg-strong);
-  white-space: nowrap;
-}
-.seg {
-  display: inline-flex;
-  padding: 2px;
-  border-radius: 6px;
-  background: var(--bg-rail);
-}
-:root[data-theme='light'] .seg {
-  background: var(--bg-input);
-}
-.seg button {
-  padding: 3px 10px;
-  border-radius: 4px;
-  font-size: 13px;
-  color: var(--fg-muted);
-}
-.seg button.on {
-  background: var(--accent);
-  color: var(--accent-fg);
-}
 .spacer {
   flex: 1;
-}
-.icon-btn.on {
-  color: var(--fg-strong);
 }
 .scroll {
   flex: 1;
   overflow-y: auto;
   padding: 8px 0 16px;
+}
+/* Same tab row as the page gallery */
+.filter {
+  margin: 4px 16px 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
 }
 .item {
   display: flex;
@@ -409,11 +356,6 @@ async function answer(n: MisskeyNotification, accept: boolean) {
   gap: 8px;
   margin-top: 6px;
 }
-.btn.small {
-  height: 28px;
-  padding: 0 12px;
-  font-size: 13px;
-}
 .muted,
 .err {
   padding: 0 16px;
@@ -433,13 +375,7 @@ async function answer(n: MisskeyNotification, accept: boolean) {
 .center {
   text-align: center;
 }
-.relogin {
-  cursor: pointer;
-}
-
-@media (max-width: 768px) {
-  .nav-btn {
-    display: inline-flex;
-  }
+.pad {
+  padding: 8px 16px;
 }
 </style>
