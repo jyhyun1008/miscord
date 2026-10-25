@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Account } from '~/composables/useAccounts'
+import { OPTIONAL_SECTIONS } from '~/composables/usePrefs'
 import { ACCENT_PRESETS, DEFAULT_ACCENT, type EmojiStyle, type ThemeMode } from '~/composables/useUi'
 
 const props = defineProps<{ account: Account }>()
@@ -8,7 +9,7 @@ const emit = defineEmits<{ close: [] }>()
 const ui = useUi()
 const toast = useToast()
 const { accounts, remove, upsert } = useAccounts()
-const { prefs, save } = usePrefs(props.account.key)
+const { prefs, save, setSectionHidden } = usePrefs(props.account.key)
 
 const themes: { value: ThemeMode, label: string }[] = [
   { value: 'system', label: '시스템' },
@@ -87,6 +88,22 @@ async function logout(key: string) {
         <option value="home">홈</option>
         <option value="followers">팔로워 전용</option>
       </select>
+    </section>
+
+    <section>
+      <h3>사이드바 항목</h3>
+      <ul class="toggles">
+        <li v-for="s in OPTIONAL_SECTIONS" :key="s.key">
+          <label class="toggle">
+            <span>{{ s.label }}</span>
+            <input
+              type="checkbox" class="sr-only" :checked="!prefs.hiddenSections[s.key]"
+              @change="setSectionHidden(s.key, !($event.target as HTMLInputElement).checked)"
+            >
+            <span class="switch" aria-hidden="true" />
+          </label>
+        </li>
+      </ul>
     </section>
 
     <section>
@@ -185,6 +202,54 @@ h3 {
   height: 32px;
   padding: 0 10px;
   font-size: 13px;
+}
+.toggles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px 16px;
+}
+.toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  cursor: pointer;
+  color: var(--fg);
+}
+/* Discord-style switch */
+.switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--bg-active);
+  transition: background 0.15s;
+}
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+}
+input:checked + .switch {
+  background: var(--accent);
+}
+input:checked + .switch::after {
+  transform: translateX(16px);
+}
+input:focus-visible + .switch {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .accounts {
   list-style: none;

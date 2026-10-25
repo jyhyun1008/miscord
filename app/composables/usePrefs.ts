@@ -9,6 +9,17 @@ export const GROUP_COLORS = ['#1abc9c', '#2ecc71', '#3498db', '#9b59b6', '#e91e6
 
 interface NamedRef { id: string, name: string }
 
+/** Sidebar entries some people never use, so they can be hidden from settings. */
+export const OPTIONAL_SECTIONS = [
+  { key: 'channels', label: '채널' },
+  { key: 'antennas', label: '안테나' },
+  { key: 'lists', label: '리스트' },
+  { key: 'tags', label: '해시태그' },
+  { key: 'clips', label: '클립' },
+  { key: 'pages', label: '페이지' },
+] as const
+export type OptionalSection = typeof OPTIONAL_SECTIONS[number]['key']
+
 export interface AccountPrefs {
   /** Cached from the server (all of them, in the user's sidebar order) */
   channels: NamedRef[]
@@ -21,11 +32,13 @@ export interface AccountPrefs {
   /** userId → groupId; one group per user, so the name color is unambiguous */
   userGroups: Record<string, string>
   collapsed: Record<string, boolean>
+  /** Sidebar sections turned off in settings; absent means shown */
+  hiddenSections: Partial<Record<OptionalSection, boolean>>
   defaultVisibility: 'public' | 'home' | 'followers'
 }
 
 function defaults(): AccountPrefs {
-  return { channels: [], antennas: [], lists: [], tags: [], pinnedUserIds: [], groups: [], userGroups: {}, collapsed: {}, defaultVisibility: 'public' }
+  return { channels: [], antennas: [], lists: [], tags: [], pinnedUserIds: [], groups: [], userGroups: {}, collapsed: {}, hiddenSections: {}, defaultVisibility: 'public' }
 }
 
 /** Per-account personalization (custom channels, pinned users), persisted in localStorage. */
@@ -69,6 +82,10 @@ export function usePrefs(accountKey: string) {
     prefs.value.collapsed[section] = !prefs.value.collapsed[section]
     save()
   }
+  function setSectionHidden(section: OptionalSection, hidden: boolean) {
+    prefs.value.hiddenSections[section] = hidden
+    save()
+  }
   function addGroup(name: string, color: string) {
     const group = { id: crypto.randomUUID(), name: name.trim(), color }
     prefs.value.groups.push(group)
@@ -106,7 +123,7 @@ export function usePrefs(accountKey: string) {
   }
 
   return {
-    prefs, save, syncFromServer, addList, addTag, removeTag, togglePin, toggleCollapsed, moveItem,
+    prefs, save, syncFromServer, addList, addTag, removeTag, togglePin, toggleCollapsed, setSectionHidden, moveItem,
     addGroup, updateGroup, removeGroup, setUserGroup, groupOf,
   }
 }

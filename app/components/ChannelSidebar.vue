@@ -18,6 +18,8 @@ const serverSections = [
   { key: 'lists', kind: 'list', label: '리스트', icon: 'list', addHref: null, addTitle: '새 리스트 만들기' },
 ] as const
 
+const visibleServerSections = computed(() => serverSections.filter(s => !prefs.value.hiddenSections[s.key]))
+
 // Older logins lack `read:channels`
 const channelsDenied = ref(false)
 
@@ -101,7 +103,7 @@ async function onRemoveTag(tag: string) {
       </section>
 
       <!-- Misskey channels, antennas, lists -->
-      <section v-for="sec in serverSections" :key="sec.key">
+      <section v-for="sec in visibleServerSections" :key="sec.key">
         <div class="cat-row">
           <button class="cat" @click="toggleCollapsed(sec.key)">
             <Icon name="chevron" :size="12" :class="{ rot: isCollapsed(sec.key) }" />
@@ -145,7 +147,7 @@ async function onRemoveTag(tag: string) {
       </section>
 
       <!-- Hashtags -->
-      <section>
+      <section v-if="!prefs.hiddenSections.tags">
         <div class="cat-row">
           <button class="cat" @click="toggleCollapsed('tags')">
             <Icon name="chevron" :size="12" :class="{ rot: isCollapsed('tags') }" />
@@ -177,12 +179,12 @@ async function onRemoveTag(tag: string) {
       </section>
 
       <!-- My collections, below a divider like Discord's bottom-of-list extras -->
-      <section class="bottom">
-        <button class="ch" :class="{ active: clipsActive }" @click="go({ kind: 'clips' })">
+      <section v-if="!prefs.hiddenSections.clips || !prefs.hiddenSections.pages" class="bottom">
+        <button v-if="!prefs.hiddenSections.clips" class="ch" :class="{ active: clipsActive }" @click="go({ kind: 'clips' })">
           <Icon name="clip" :size="18" />
           <span class="label">클립</span>
         </button>
-        <button class="ch" :class="{ active: pagesActive }" @click="go({ kind: 'pages' })">
+        <button v-if="!prefs.hiddenSections.pages" class="ch" :class="{ active: pagesActive }" @click="go({ kind: 'pages' })">
           <Icon name="page" :size="18" />
           <span class="label">페이지</span>
         </button>
