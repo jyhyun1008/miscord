@@ -6,6 +6,7 @@ const props = defineProps<{ account: Account, channel: Channel | null }>()
 const emit = defineEmits<{ addList: [], addTag: [] }>()
 
 const ui = useUi()
+const profile = useProfilePopout()
 const api = useApi(props.account)
 const { prefs, toggleCollapsed, syncFromServer, removeTag, moveItem } = usePrefs(props.account.key)
 
@@ -172,11 +173,18 @@ async function onRemoveTag(tag: string) {
 
     <!-- User panel -->
     <footer class="me">
-      <UserAvatar class="avatar" :user="props.account.user" />
-      <div class="who">
-        <MfmText class="dn" :text="displayName(props.account.user)" :emojis="props.account.user.emojis" plain />
-        <span class="un">@{{ props.account.user.username }}</span>
-      </div>
+      <button
+        class="my-profile"
+        title="내 프로필 보기"
+        aria-label="내 프로필 보기"
+        @click="profile.open({ userId: props.account.user.id }, $event.currentTarget as HTMLElement)"
+      >
+        <UserAvatar class="avatar" :user="props.account.user" />
+        <span class="who">
+          <MfmText class="dn" :text="displayName(props.account.user)" :emojis="props.account.user.emojis" plain />
+          <span class="un">@{{ props.account.user.username }}</span>
+        </span>
+      </button>
       <button class="icon-btn" title="설정" @click="ui.settingsOpen = true">
         <Icon name="settings" :size="18" />
       </button>
@@ -332,11 +340,26 @@ a.add {
   background: var(--bg-panel);
 }
 .avatar {
+  flex-shrink: 0;
   width: 32px;
   height: 32px;
   border-radius: 50%;
   object-fit: cover;
   background: var(--bg-active);
+}
+.my-profile {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+  border-radius: 4px;
+  text-align: left;
+}
+.my-profile:hover,
+.my-profile:focus-visible {
+  background: var(--bg-hover);
 }
 .who {
   flex: 1;

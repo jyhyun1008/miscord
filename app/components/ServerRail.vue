@@ -1,6 +1,47 @@
 <script setup lang="ts">
 const props = defineProps<{ currentKey: string }>()
-const { accounts } = useAccounts()
+const { accounts, move } = useAccounts()
+const draggingKey = ref<string | null>(null)
+const dropTarget = ref<{ key: string, after: boolean } | null>(null)
+
+function startDrag(event: DragEvent, key: string) {
+  if (!event.dataTransfer) return
+  draggingKey.value = key
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('text/plain', key)
+}
+
+function dragOver(event: DragEvent, key: string) {
+  if (!draggingKey.value || draggingKey.value === key) {
+    dropTarget.value = null
+    return
+  }
+  event.preventDefault()
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  dropTarget.value = { key, after: event.clientY > rect.top + rect.height / 2 }
+}
+
+function endDrag() {
+  draggingKey.value = null
+  dropTarget.value = null
+}
+
+function drop(event: DragEvent, key: string) {
+  event.preventDefault()
+  if (draggingKey.value && dropTarget.value?.key === key) {
+    move(draggingKey.value, key, dropTarget.value.after)
+  }
+  endDrag()
+}
+
+function moveWithKeyboard(event: KeyboardEvent, key: string) {
+  if (!event.altKey || !['ArrowUp', 'ArrowDown'].includes(event.key)) return
+  event.preventDefault()
+  const offset = event.key === 'ArrowUp' ? -1 : 1
+  const target = accounts.value[accounts.value.findIndex(a => a.key === key) + offset]
+  if (target) move(key, target.key, offset > 0)
+}
 
 function initials(name: string) {
   return name.replace(/[^\p{L}\p{N}]/gu, '').slice(0, 2).toUpperCase() || '?'
@@ -14,11 +55,28 @@ function initials(name: string) {
         v-for="a in accounts"
         :key="a.key"
         class="item"
-        :class="{ active: a.key === props.currentKey }"
+        :class="{
+          active: a.key === props.currentKey,
+          dragging: a.key === draggingKey,
+          'drop-before': dropTarget?.key === a.key && !dropTarget.after,
+          'drop-after': dropTarget?.key === a.key && dropTarget.after,
+        }"
+        @dragover="dragOver($event, a.key)"
+        @dragleave="dropTarget?.key === a.key && (dropTarget = null)"
+        @drop="drop($event, a.key)"
       >
         <span class="pill" />
-        <NuxtLink :to="`/${a.key}/home`" class="server" :title="`${a.meta.name ?? a.host} — @${a.user.username}`">
-          <img v-if="a.meta.iconUrl" :src="a.meta.iconUrl" alt="">
+        <NuxtLink
+          :to="`/${a.key}/home`"
+          class="server"
+          :title="`${a.meta.name ?? a.host} — @${a.user.username}（드래그하여 순서 변경）`"
+          draggable="true"
+          aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
+          @dragstart="startDrag($event, a.key)"
+          @dragend="endDrag"
+          @keydown="moveWithKeyboard($event, a.key)"
+        >
+          <img v-if="a.meta.iconUrl" :src="a.meta.iconUrl" alt="" draggable="false">
           <span v-else class="initials">{{ initials(a.meta.name ?? a.host) }}</span>
           <UserAvatar class="badge" :user="a.user" />
         </NuxtLink>
@@ -67,6 +125,29 @@ ul {
   background: var(--fg-strong);
   transform: translateY(-50%);
   transition: height 0.15s;
+}
+.item.dragging {
+  opacity: 0.4;
+}
+.item.drop-before::after,
+.item.drop-after::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+  pointer-events: none;
+}
+.item.drop-before::after {
+  top: -6px;
+}
+.item.drop-after::after {
+  bottom: -6px;
+}
+.server :deep(img) {
+  -webkit-user-drag: none;
 }
 .item:hover .pill {
   height: 20px;

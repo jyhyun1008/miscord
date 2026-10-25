@@ -54,6 +54,17 @@ export function useAccounts() {
     removeKey(`miscord:prefs:${key}`)
   }
 
+  function move(key: string, targetKey: string, after = false) {
+    if (key === targetKey || !find(key) || !find(targetKey)) return
+    const reordered = [...accounts.value]
+    const [account] = reordered.splice(reordered.findIndex(a => a.key === key), 1)
+    if (!account) return
+    const targetIndex = reordered.findIndex(a => a.key === targetKey)
+    reordered.splice(targetIndex + (after ? 1 : 0), 0, account)
+    accounts.value = reordered
+    persist()
+  }
+
   function lastUsed(): Account | null {
     return find(loadJson<string | null>(LAST_KEY, null)) ?? accounts.value[0] ?? null
   }
@@ -62,7 +73,7 @@ export function useAccounts() {
     saveJson(LAST_KEY, key)
   }
 
-  return { accounts, find, upsert, remove, lastUsed, markUsed, persist }
+  return { accounts, find, upsert, remove, move, lastUsed, markUsed, persist }
 }
 
 /** Kick off MiAuth: remember the session locally and send the browser to the instance. */
