@@ -1,0 +1,7 @@
+services:
+  miscord:
+    image: ${DOCKERHUB_USER:-jyhyun1008}/miscord:${MISCORD_TAG:-latest}
+    container_name: miscord
+    restart: unless-stopped
+    ports:
+      - "${MISCORD_PORT:-3223}:80"

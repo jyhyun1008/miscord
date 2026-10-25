@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="51.2 51.2 409.6 409.6">
+  <title>Miscord</title>
+  <rect width="512" height="512" fill="#86b300"/>
+  <!-- Controller silhouette with Misskey's rounded Mi replacing the eyes. -->
+  <path fill="#fff" transform="translate(256 256) scale(.8 1.064) translate(-256 -248.5)" d="M182 141c-28 5-51 14-70 24-29 43-45 94-48 151 23 19 48 31 74 40l18-28-23-12 6-5c73 34 161 34 234 0l6 5-23 12 18 28c26-9 51-21 74-40-3-57-19-108-48-151-19-10-42-19-70-24l-9 18c-43-7-87-7-130 0z"/>
+  <g fill="#86b300" transform="translate(173 207) scale(.55)">
+    <path d="M0 37C0 5 32-9 53 14l43 48c5 6 10 6 15 0l43-48c21-23 54-9 54 23v124c0 43-65 43-65 0v-24c0-5-4-7-7-3-19 25-47 25-66 0-3-4-7-2-7 3v24c0 43-63 43-63 0z"/>
+    <circle cx="250" cy="27" r="29"/>
+    <rect x="221" y="62" width="58" height="131" rx="29"/>
+  </g>
+</svg>

@@ -1,0 +1,122 @@
+import { h, defineComponent, type PropType, type VNode } from 'vue'
+import * as mfm from 'mfm-js'
+
+/** Custom emoji image that falls back to `:name:` text if it fails to load (unknown emoji, hotlink block). */
+const MfmEmoji = defineComponent({
+  props: { name: { type: String, required: true }, url: { type: String, required: true } },
+  setup(props) {
+    const failed = ref(false)
+    watch(() => props.url, () => (failed.value = false))
+    return () => failed.value
+      ? h('span', { class: 'mfm-emoji-text' }, `:${props.name}:`)
+      : h('img', {
+          class: 'mfm-emoji',
+          src: props.url,
+          alt: `:${props.name}:`,
+          title: `:${props.name}:`,
+          loading: 'lazy',
+          decoding: 'async',
+          referrerpolicy: 'no-referrer',
+          onError: () => (failed.value = true),
+        })
+  },
+})
+
+/**
+ * Renders MFM (Misskey Flavored Markdown). `plain` only handles text + emoji,
+ * used for display names.
+ */
+export default defineComponent({
+  name: 'MfmText',
+  props: {
+    text: { type: String, required: true },
+    emojis: { type: Object as PropType<Record<string, string> | undefined>, default: undefined },
+    plain: { type: Boolean, default: false },
+  },
+  setup(props) {
+    const account = useCurrentAccount()
+    const profile = useProfilePopout()
+
+    const emojiList = account.value ? useEmojis(account.value) : null
+
+    function emojiUrl(name: string): string | null {
+      if (props.emojis?.[name]) return props.emojis[name]
+      const local = emojiList?.byName.value.get(name)
+      if (local) return local
+      const host = account.value?.host
+      return host ? `https://${host}/emoji/${name}.webp` : null
+    }
+
+    function goTag(e: MouseEvent, tag: string) {
+      e.preventDefault()
+      if (account.value) navigateTo(channelPath(account.value.key, { kind: 'tag', tag }))
+    }
+
+    function render(nodes: mfm.MfmNode[]): (VNode | string)[] {
+      return nodes.map((node): VNode | string => {
+        switch (node.type) {
+          case 'text':
+            return node.props.text
+          case 'unicodeEmoji':
+            return node.props.emoji
+          case 'emojiCode': {
+            const url = emojiUrl(node.props.name)
+            return url ? h(MfmEmoji, { name: node.props.name, url }) : `:${node.props.name}:`
+          }
+          case 'bold':
+            return h('b', render(node.children))
+          case 'italic':
+            return h('i', render(node.children))
+          case 'strike':
+            return h('del', render(node.children))
+          case 'small':
+            return h('small', { class: 'mfm-small' }, render(node.children))
+          case 'center':
+            return h('div', { class: 'mfm-center' }, render(node.children))
+          case 'plain':
+            return h('span', render(node.children))
+          case 'inlineCode':
+            return h('code', { class: 'mfm-code' }, node.props.code)
+          case 'blockCode':
+            return h('pre', { class: 'mfm-pre' }, [h('code', node.props.code)])
+          case 'mathInline':
+            return h('code', { class: 'mfm-code' }, node.props.formula)
+          case 'mathBlock':
+            return h('pre', { class: 'mfm-pre' }, [h('code', node.props.formula)])
+          case 'quote':
+            return h('blockquote', { class: 'mfm-quote' }, render(node.children))
+          case 'search':
+            return h('a', {
+              class: 'mfm-search',
+              href: `https://www.google.com/search?q=${encodeURIComponent(node.props.query)}`,
+              target: '_blank',
+              rel: 'noopener noreferrer',
+            }, `🔍 ${node.props.query}`)
+          case 'url':
+            return h('a', { href: safeHttpUrl(node.props.url), target: '_blank', rel: 'noopener noreferrer', class: 'mfm-url' }, node.props.url.replace(/^https?:\/\//, ''))
+          case 'link':
+            return h('a', { href: safeHttpUrl(node.props.url), target: '_blank', rel: 'noopener noreferrer', title: node.props.url }, render(node.children))
+          case 'mention':
+            return h('a', {
+              class: 'mfm-mention',
+              href: '#',
+              onClick: (e: MouseEvent) => {
+                e.preventDefault()
+                profile.open({ username: node.props.username, host: node.props.host }, e.currentTarget as HTMLElement)
+              },
+            }, node.props.acct)
+          case 'hashtag':
+            return h('a', { class: 'mfm-hashtag', href: '#', onClick: (e: MouseEvent) => goTag(e, node.props.hashtag) }, `#${node.props.hashtag}`)
+          case 'fn':
+            // Animations/transforms are skipped; just show the content
+            return h('span', { class: `mfm-fn mfm-fn-${node.props.name}` }, render(node.children))
+          default:
+            return ''
+        }
+      })
+    }
+
+    const nodes = computed(() => props.plain ? mfm.parseSimple(props.text) : mfm.parse(props.text))
+    return () => h('span', { class: 'mfm' }, render(nodes.value))
+  },
+})

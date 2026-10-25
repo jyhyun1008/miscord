@@ -1,0 +1,212 @@
+/* Misskey-flavored Discord palette */
+:root {
+  /* User-pickable theme color (set inline on <html> by applyAccent); every accent token derives from it */
+  --accent-base: #86b300;
+  --accent-fg: #ffffff;
+  --accent: var(--accent-base);
+  --accent-hover: color-mix(in srgb, var(--accent-base), white 16%);
+  --accent-soft: color-mix(in srgb, var(--accent-base) 16%, transparent);
+  --mention-bg: color-mix(in srgb, var(--accent-base) 10%, transparent);
+
+  --bg-rail: #17191c;
+  --bg-sidebar: #1f2226;
+  --bg-main: #26292e;
+  --bg-input: #31353b;
+  --bg-hover: rgba(255, 255, 255, 0.04);
+  --bg-active: rgba(255, 255, 255, 0.08);
+  --bg-float: #121417;
+  --bg-embed: #2b2f34;
+  --bg-panel: #1b1e21;
+
+  --fg: #dcddde;
+  --fg-strong: #ffffff;
+  --fg-muted: #949ba4;
+  --fg-faint: #6d737b;
+  --fg-link: color-mix(in srgb, var(--accent-base), white 25%);
+
+  --border: rgba(255, 255, 255, 0.06);
+  --danger: #ec4245;
+  --shadow: 0 8px 16px rgba(0, 0, 0, 0.24);
+
+  --rail-w: 72px;
+  --sidebar-w: 240px;
+  --members-w: 240px;
+  --header-h: 48px;
+  /* Bottom bar height: the composer's one-line box (44px) + its bottom gap (24px), so both line up */
+  --footer-h: 68px;
+
+  --radius: 8px;
+  --font: 'Pretendard', 'Noto Sans KR', 'gg sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --accent: color-mix(in srgb, var(--accent-base), black 12%);
+  --accent-hover: var(--accent-base);
+  --accent-soft: color-mix(in srgb, var(--accent-base) 18%, transparent);
+  --mention-bg: color-mix(in srgb, var(--accent-base) 12%, transparent);
+
+  --bg-rail: #e3e5e8;
+  --bg-sidebar: #f2f3f5;
+  --bg-main: #ffffff;
+  --bg-input: #ebedef;
+  --bg-hover: rgba(0, 0, 0, 0.035);
+  --bg-active: rgba(0, 0, 0, 0.07);
+  --bg-float: #ffffff;
+  --bg-embed: #f2f3f5;
+  --bg-panel: #f2f3f5;
+
+  --fg: #2e3338;
+  --fg-strong: #060607;
+  --fg-muted: #5c6370;
+  --fg-faint: #80868e;
+  --fg-link: color-mix(in srgb, var(--accent-base), black 30%);
+
+  --border: rgba(0, 0, 0, 0.08);
+  --shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#__nuxt {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg-main);
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.375;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+a {
+  color: var(--fg-link);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+img {
+  max-width: 100%;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--accent) 55%, transparent);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+/* Firefox has no ::-webkit-scrollbar; Chromium ignores the pseudo-elements once scrollbar-color is set, so scope it */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--accent) 55%, transparent) transparent;
+  }
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 600;
+  transition: background 0.15s;
+}
+.btn:hover {
+  background: var(--accent-hover);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn.ghost {
+  background: transparent;
+  color: var(--fg);
+}
+.btn.ghost:hover {
+  background: var(--bg-hover);
+  text-decoration: underline;
+}
+.btn.danger {
+  background: var(--danger);
+}
+
+.field {
+  width: 100%;
+  height: 40px;
+  padding: 0 10px;
+  border-radius: 4px;
+  border: none;
+  background: var(--bg-rail);
+  outline: none;
+}
+:root[data-theme='light'] .field {
+  background: var(--bg-input);
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  color: var(--fg-muted);
+}
+.icon-btn:hover {
+  color: var(--fg);
+  background: var(--bg-hover);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
