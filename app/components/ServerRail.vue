@@ -1,6 +1,19 @@
 <script setup lang="ts">
 const props = defineProps<{ currentKey: string }>()
 const { accounts, move } = useAccounts()
+const notifications = computed(() => Object.fromEntries(
+  accounts.value.map(account => [account.key, useNotifications(account)]),
+))
+const unreadCounts = computed(() => Object.fromEntries(
+  Object.entries(notifications.value).map(([key, state]) => [key, state.unread.value]),
+))
+
+// Keep every server's badge live, including accounts that haven't been opened yet.
+onMounted(() => {
+  watch(notifications, states => {
+    for (const state of Object.values(states)) state.start()
+  }, { immediate: true })
+})
 const draggingKey = ref<string | null>(null)
 const dropTarget = ref<{ key: string, after: boolean } | null>(null)
 
@@ -79,6 +92,12 @@ function initials(name: string) {
           <img v-if="a.meta.iconUrl" :src="a.meta.iconUrl" alt="" draggable="false">
           <span v-else class="initials">{{ initials(a.meta.name ?? a.host) }}</span>
           <UserAvatar class="badge" :user="a.user" />
+          <span
+            v-if="(unreadCounts[a.key] ?? 0) > 0"
+            class="notification-badge"
+            :aria-label="`읽지 않은 알림 ${unreadCounts[a.key]}개`"
+            :title="`읽지 않은 알림 ${unreadCounts[a.key]}개`"
+          >{{ (unreadCounts[a.key] ?? 0) > 99 ? '99+' : unreadCounts[a.key] }}</span>
         </NuxtLink>
       </li>
       <li class="sep" />
@@ -186,12 +205,31 @@ ul {
 .badge {
   position: absolute;
   right: -4px;
-  bottom: -4px;
+  top: -4px;
   width: 20px;
   height: 20px;
   border-radius: 50%;
   border: 3px solid var(--bg-rail);
   object-fit: cover;
+}
+.notification-badge {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 4px;
+  border: 3px solid var(--bg-rail);
+  border-radius: 12px;
+  background: #ed4245;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 .add {
   color: var(--accent);

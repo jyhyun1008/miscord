@@ -31,7 +31,8 @@ onMounted(async () => {
 
 <style scoped>
 .cb {
-  height: 100dvh;
+  position: fixed;
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;

@@ -115,6 +115,15 @@ select {
   color: inherit;
 }
 
+/* iOS Safari zooms the page when focusing a field under 16px */
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: max(16px, 1em) !important;
+  }
+}
+
 img {
   max-width: 100%;
 }

@@ -13,7 +13,6 @@ export default defineNuxtConfig({
         { name: 'theme-color', content: '#86b300' },
         { name: 'apple-mobile-web-app-title', content: 'Miscord' },
         { name: 'mobile-web-app-capable', content: 'yes' },
-        { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
       ],
       link: [
         { rel: 'icon', href: '/favicon.ico', sizes: '16x16 32x32 48x48' },

@@ -9,6 +9,7 @@ const ui = useUi()
 const profile = useProfilePopout()
 const api = useApi(props.account)
 const { prefs, toggleCollapsed, syncFromServer, removeTag, moveItem } = usePrefs(props.account.key)
+const { unread } = useNotifications(props.account)
 
 // Channels, antennas and lists always mirror the server; only their order is local
 const serverSections = [
@@ -66,6 +67,19 @@ async function onRemoveTag(tag: string) {
     </header>
 
     <div class="scroll">
+      <!-- Server-wide entries above the categories, like Discord's Events / Browse Channels -->
+      <section class="top">
+        <button class="ch" :class="{ active: props.channel?.kind === 'explore' }" @click="go({ kind: 'explore' })">
+          <Icon name="compass" :size="18" />
+          <span class="label">서버 훑어보기</span>
+        </button>
+        <button class="ch" :class="{ active: props.channel?.kind === 'notifications', unread: unread > 0 }" @click="go({ kind: 'notifications' })">
+          <Icon name="bell" :size="18" />
+          <span class="label">알림</span>
+          <span v-if="unread > 0" class="count">{{ unread > 99 ? '99+' : unread }}</span>
+        </button>
+      </section>
+
       <!-- Built-in timelines -->
       <section>
         <button class="cat" @click="toggleCollapsed('timelines')">
@@ -228,6 +242,30 @@ async function onRemoveTag(tag: string) {
 }
 section {
   margin-top: 12px;
+}
+section.top {
+  margin-top: 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.ch.unread {
+  color: var(--fg-strong);
+}
+.ch.unread .label {
+  font-weight: 600;
+}
+/* Discord-style mention badge */
+.count {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
 }
 .cat-row {
   display: flex;

@@ -1,26 +1,7 @@
 import { h, defineComponent, type PropType, type VNode } from 'vue'
 import * as mfm from 'mfm-js'
-
-/** Custom emoji image that falls back to `:name:` text if it fails to load (unknown emoji, hotlink block). */
-const MfmEmoji = defineComponent({
-  props: { name: { type: String, required: true }, url: { type: String, required: true } },
-  setup(props) {
-    const failed = ref(false)
-    watch(() => props.url, () => (failed.value = false))
-    return () => failed.value
-      ? h('span', { class: 'mfm-emoji-text' }, `:${props.name}:`)
-      : h('img', {
-          class: 'mfm-emoji',
-          src: props.url,
-          alt: `:${props.name}:`,
-          title: `:${props.name}:`,
-          loading: 'lazy',
-          decoding: 'async',
-          referrerpolicy: 'no-referrer',
-          onError: () => (failed.value = true),
-        })
-  },
-})
+import UnicodeEmoji from './UnicodeEmoji.vue'
+import MfmEmoji from './MfmEmoji.vue'
 
 /**
  * Renders MFM (Misskey Flavored Markdown). `plain` only handles text + emoji,
@@ -58,10 +39,10 @@ export default defineComponent({
           case 'text':
             return node.props.text
           case 'unicodeEmoji':
-            return node.props.emoji
+            return h(UnicodeEmoji, { emoji: node.props.emoji })
           case 'emojiCode': {
             const url = emojiUrl(node.props.name)
-            return url ? h(MfmEmoji, { name: node.props.name, url }) : `:${node.props.name}:`
+            return url ? h(MfmEmoji, { name: node.props.name, url, animate: !props.plain }) : `:${node.props.name}:`
           }
           case 'bold':
             return h('b', render(node.children))

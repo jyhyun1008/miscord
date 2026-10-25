@@ -14,6 +14,7 @@ const clipMenu = ref(false)
 watch(menuOpen, () => (clipMenu.value = false))
 
 const renoter = computed(() => (isPureRenote(props.note) ? props.note.user : null))
+const isMyRenote = computed(() => !!renoter.value && props.note.userId === props.account.user.id)
 const n = computed(() => appearNote(props.note))
 const isMine = computed(() => n.value.userId === props.account.user.id)
 const mentionsMe = computed(() =>
@@ -59,6 +60,11 @@ async function onBlock() {
 function onDelete() {
   menuOpen.value = false
   if (confirm('이 노트를 삭제할까요?')) actions.remove(n.value)
+}
+
+function onUndoRenote() {
+  menuOpen.value = false
+  if (isMyRenote.value && confirm('이 리노트를 취소할까요?')) actions.remove(props.note)
 }
 </script>
 
@@ -165,6 +171,9 @@ function onDelete() {
             <span>유저 차단</span><Icon name="block" :size="16" />
           </button>
         </template>
+        <button v-if="isMyRenote" class="danger" @click="onUndoRenote">
+          <span>리노트 취소</span><Icon name="trash" :size="16" />
+        </button>
         <button v-if="isMine" class="danger" @click="onDelete">
           <span>노트 삭제</span><Icon name="trash" :size="16" />
         </button>

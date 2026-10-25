@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Account } from '~/composables/useAccounts'
-import { ACCENT_PRESETS, DEFAULT_ACCENT, type ThemeMode } from '~/composables/useUi'
+import { ACCENT_PRESETS, DEFAULT_ACCENT, type EmojiStyle, type ThemeMode } from '~/composables/useUi'
 
 const props = defineProps<{ account: Account }>()
 const emit = defineEmits<{ close: [] }>()
@@ -15,6 +15,10 @@ const themes: { value: ThemeMode, label: string }[] = [
   { value: 'dark', label: '다크' },
   { value: 'light', label: '라이트' },
 ]
+const emojiStyles: { value: EmojiStyle, label: string }[] = [
+  { value: 'twemoji', label: 'Twemoji' },
+  { value: 'native', label: '시스템' },
+]
 
 async function refreshProfile() {
   try {
@@ -27,15 +31,17 @@ async function refreshProfile() {
   }
 }
 
-function logout(key: string) {
+async function logout(key: string) {
   if (!confirm(`${key} 계정을 로그아웃할까요?\n(이 기기에서 토큰과 채널 설정이 삭제됩니다)`)) return
+  if (key === props.account.key) {
+    // Leave the account's page before removing it; removing first blanks the page
+    // and its own fallback redirect races with this one.
+    emit('close')
+    const next = accounts.value.find(a => a.key !== key)
+    await navigateTo(next ? `/${next.key}/home` : '/login', { replace: true })
+  }
   closeStream(key)
   remove(key)
-  if (key === props.account.key) {
-    emit('close')
-    const next = accounts.value[0]
-    navigateTo(next ? `/${next.key}/home` : '/login', { replace: true })
-  }
 }
 </script>
 
@@ -62,6 +68,15 @@ function logout(key: string) {
           <Icon name="plus" :size="16" />
         </label>
         <button v-if="ui.accent.toLowerCase() !== DEFAULT_ACCENT" class="btn ghost reset" @click="ui.accent = DEFAULT_ACCENT">기본값</button>
+      </div>
+    </section>
+
+    <section>
+      <h3>이모지 스타일 <span class="hint">모든 계정 공통</span></h3>
+      <div class="seg">
+        <button v-for="s in emojiStyles" :key="s.value" :class="{ on: ui.emojiStyle === s.value }" @click="ui.emojiStyle = s.value">
+          {{ s.label }}
+        </button>
       </div>
     </section>
 
@@ -219,6 +234,7 @@ h3 {
 }
 .row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 8px;
 }

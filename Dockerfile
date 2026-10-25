@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- build: 정적 SPA 생성 ----
-FROM node:22-alpine AS build
+FROM node:22.23.4-alpine AS build
 WORKDIR /app
 
 COPY package.json package-lock.json ./
@@ -12,7 +12,7 @@ COPY . .
 RUN npx nuxt prepare && npm run generate
 
 # ---- runtime: nginx로 정적 파일 서빙 ----
-FROM nginx:1.27-alpine
+FROM nginx:1.30-alpine
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/.output/public /usr/share/nginx/html
 

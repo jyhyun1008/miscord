@@ -27,8 +27,21 @@ const ui = useUi()
 .shell {
   display: grid;
   grid-template-columns: var(--rail-w) var(--sidebar-w) minmax(0, 1fr) var(--members-w);
-  height: 100dvh;
+  position: fixed;
+  inset: 0;
   overflow: hidden;
+}
+/* viewport-fit=cover: keep content clear of the notch / home indicator */
+.rail,
+.sidebar,
+.main,
+.members {
+  padding-top: env(safe-area-inset-top);
+}
+.rail,
+.sidebar,
+.members {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 .rail {
   background: var(--bg-rail);

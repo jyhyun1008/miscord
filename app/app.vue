@@ -8,6 +8,7 @@ onMounted(() => {
 })
 watch(() => ui.theme, applyTheme)
 watch(() => ui.accent, applyAccent)
+watch(() => ui.emojiStyle, style => saveJson('miscord:emoji-style', style))
 </script>
 
 <template>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Account } from '~/composables/useAccounts'
+import type { UnicodeEmojiEntry } from '~/composables/useEmojis'
 
 const props = defineProps<{ account: Account, anchor: HTMLElement }>()
 const emit = defineEmits<{ pick: [emoji: string], close: [] }>()
@@ -33,13 +34,24 @@ const customByCategory = computed(() => {
   return [...groups].map(([category, emojis]) => ({ category, emojis }))
 })
 
+const unicodeIndex = shallowRef<UnicodeEmojiEntry[]>([])
+loadUnicodeEmojiIndex().then(index => (unicodeIndex.value = index))
+
+const query = computed(() => q.value.trim().toLowerCase().replace(/^:|:$/g, ''))
 const results = computed(() => {
-  const s = q.value.trim().toLowerCase().replace(/^:|:$/g, '')
+  const s = query.value
   if (!s) return null
   return (list.value ?? [])
     .filter(e => e.name.toLowerCase().includes(s) || e.aliases?.some(a => a.toLowerCase().includes(s)))
     .slice(0, 120)
 })
+const unicodeResults = computed(() => query.value ? searchUnicodeEmojis(unicodeIndex.value, query.value) : [])
+
+function pickFirstResult() {
+  const custom = results.value?.[0]
+  if (custom) pick(`:${custom.name}:`)
+  else if (unicodeResults.value[0]) pick(unicodeResults.value[0])
+}
 
 function emojiUrl(token: string) {
   const name = token.replace(/^:|:$/g, '').replace(/@\.$/, '')
@@ -76,15 +88,22 @@ onBeforeUnmount(() => {
 <template>
   <Teleport to="body">
     <div ref="root" class="picker" :style="{ left: `${pos.left}px`, top: `${pos.top}px`, width: `${W}px`, height: `${H}px` }">
-      <input ref="input" v-model="q" class="search" placeholder="이모지 검색" @keydown.enter="results?.[0] && pick(`:${results[0].name}:`)">
+      <!-- :value + @input instead of v-model, which waits for IME composition to end (Hangul) -->
+      <input
+        ref="input" :value="q" class="search" placeholder="이모지 검색 (이름, 한국어 키워드)"
+        @input="q = ($event.target as HTMLInputElement).value" @keydown.enter="!$event.isComposing && pickFirstResult()"
+      >
       <div class="scroll">
         <template v-if="results">
           <div class="grid">
             <button v-for="e in results" :key="e.name" :title="`:${e.name}:`" @click="pick(`:${e.name}:`)">
               <img :src="e.url" :alt="e.name" loading="lazy" referrerpolicy="no-referrer">
             </button>
+            <button v-for="e in unicodeResults" :key="e" :title="e" @click="pick(e)">
+              <UnicodeEmoji :emoji="e" />
+            </button>
           </div>
-          <p v-if="!results.length" class="none">검색 결과가 없어요</p>
+          <p v-if="!results.length && !unicodeResults.length" class="none">검색 결과가 없어요</p>
         </template>
         <template v-else>
           <section v-if="recent.length">
@@ -92,7 +111,7 @@ onBeforeUnmount(() => {
             <div class="grid">
               <button v-for="e in recent" :key="e" :title="e" @click="pick(e)">
                 <img v-if="e.startsWith(':')" :src="emojiUrl(e)" :alt="e" loading="lazy" referrerpolicy="no-referrer">
-                <span v-else>{{ e }}</span>
+                <UnicodeEmoji v-else :emoji="e" />
               </button>
             </div>
           </section>
@@ -111,8 +130,8 @@ onBeforeUnmount(() => {
           <section v-for="g in UNICODE_EMOJIS" :key="g.category">
             <h4>{{ g.category }}</h4>
             <div class="grid">
-              <button v-for="e in g.emojis" :key="e" @click="pick(e)">
-                <span>{{ e }}</span>
+              <button v-for="e in g.emojis" :key="e" :title="e" @click="pick(e)">
+                <UnicodeEmoji :emoji="e" />
               </button>
             </div>
           </section>

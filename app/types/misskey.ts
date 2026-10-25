@@ -114,6 +114,21 @@ export interface Clip {
   notesCount?: number
 }
 
+export interface MisskeyNotification {
+  id: string
+  createdAt: string
+  /** follow, mention, reply, renote, quote, reaction, pollEnded, receiveFollowRequest, ... */
+  type: string
+  user?: UserLite | null
+  note?: Note | null
+  reaction?: string | null
+  achievement?: string
+  role?: { name: string } | null
+  /** type 'app' */
+  header?: string | null
+  body?: string | null
+}
+
 export interface CustomEmoji {
   name: string
   url: string

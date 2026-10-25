@@ -1,4 +1,5 @@
 export type ThemeMode = 'system' | 'dark' | 'light'
+export type EmojiStyle = 'twemoji' | 'native'
 
 /** Misskey's lime green; the default theme color. */
 export const DEFAULT_ACCENT = '#86b300'
@@ -13,6 +14,8 @@ interface UiState {
   theme: ThemeMode
   /** Theme color shared by every account */
   accent: string
+  /** How unicode emoji are drawn */
+  emojiStyle: EmojiStyle
 }
 
 /** Transient UI state shared across layout pieces (drawers, modals, theme). */
@@ -24,6 +27,7 @@ export function useUi() {
     groupsOpen: false,
     theme: loadJson<ThemeMode>('miscord:theme', 'system'),
     accent: loadJson<string>('miscord:accent', DEFAULT_ACCENT),
+    emojiStyle: loadJson<EmojiStyle>('miscord:emoji-style', 'twemoji'),
   })).value
 }
 

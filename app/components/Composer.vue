@@ -72,8 +72,9 @@ function focus() {
 defineExpose({ focus })
 
 function onKeydown(e: KeyboardEvent) {
-  // Don't send while an IME (Korean/Japanese input) is composing
-  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && e.keyCode !== 229) {
+  // Don't send while an IME (Korean/Japanese input) is composing.
+  // On touch devices Enter is a newline; the send button sends.
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && e.keyCode !== 229 && !matchMedia('(pointer: coarse)').matches) {
     e.preventDefault()
     send()
   }
@@ -234,7 +235,7 @@ function insertEmoji(emoji: string) {
 .composer {
   flex-shrink: 0;
   /* Vertically centers the one-line box in --footer-h, level with the sidebar's user panel */
-  padding: 12px 16px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
 }
 .context {
   display: flex;

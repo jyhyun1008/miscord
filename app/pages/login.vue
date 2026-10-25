@@ -65,10 +65,11 @@ async function submit() {
 
 <style scoped>
 .login {
-  min-height: 100dvh;
+  position: fixed;
+  inset: 0;
   display: grid;
   place-items: center;
-  padding: 16px;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
   background:
     radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--accent-base) 35%, transparent), transparent 50%),
     radial-gradient(circle at 80% 80%, color-mix(in srgb, color-mix(in srgb, var(--accent-base), black 30%) 30%, transparent), transparent 55%),

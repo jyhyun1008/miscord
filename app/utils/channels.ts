@@ -10,8 +10,12 @@ export type Channel =
   | { kind: 'clip', id: string }
   /** Card overview of my clips (like Discord's thread/forum view), not a timeline */
   | { kind: 'clips' }
+  /** Notification inbox, not a timeline */
+  | { kind: 'notifications' }
+  /** Server overview: info, stats, trends, featured notes */
+  | { kind: 'explore' }
 
-export type TimelineChannel = Exclude<Channel, { kind: 'clips' }>
+export type TimelineChannel = Exclude<Channel, { kind: 'clips' } | { kind: 'notifications' } | { kind: 'explore' }>
 
 export const BUILTIN_CHANNELS: { kind: BuiltinKind, label: string, topic: string }[] = [
   { kind: 'home', label: '홈', topic: '내가 팔로우한 사람들의 노트' },
@@ -29,6 +33,8 @@ export function parseChannel(parts: string[] | string | undefined): Channel | nu
     case 'global':
       return { kind }
     case 'clips':
+    case 'notifications':
+    case 'explore':
       return { kind }
     case 'channel':
     case 'antenna':

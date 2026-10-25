@@ -16,6 +16,7 @@ watchEffect(() => {
   }
   markUsed(account.value.key)
   useEmojis(account.value).load()
+  useNotifications(account.value).start()
   if (!channel.value) navigateTo(channelPath(account.value.key, { kind: 'home' }), { replace: true })
 })
 
@@ -41,6 +42,8 @@ watch(() => route.fullPath, () => {
     </template>
 
     <ClipsView v-if="channel?.kind === 'clips'" :key="`${account.key}:clips`" :account="account" />
+    <NotificationsView v-else-if="channel?.kind === 'notifications'" :key="`${account.key}:notifications`" :account="account" />
+    <ExploreView v-else-if="channel?.kind === 'explore'" :key="`${account.key}:explore`" :account="account" />
     <ChatView
       v-else-if="channel"
       :key="`${account.key}:${channelId(channel)}`"

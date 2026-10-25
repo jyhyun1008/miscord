@@ -4,7 +4,7 @@ import type { DriveFile, Note } from '~/types/misskey'
 const props = defineProps<{ note: Note, depth?: number }>()
 const showCw = ref(false)
 const revealed = ref<Record<string, boolean>>({})
-const lightbox = ref<string | null>(null)
+const lightbox = ref<number | null>(null)
 
 const emojis = computed(() => ({ ...props.note.user.emojis, ...props.note.emojis }))
 const quote = computed(() => (props.note.renote && (props.depth ?? 0) < 1 ? props.note.renote : null))
@@ -40,7 +40,7 @@ const profile = useProfilePopout()
 
       <div v-if="images.length" class="images" :class="`n${Math.min(images.length, 4)}`">
         <div
-          v-for="f in images"
+          v-for="(f, index) in images"
           :key="f.id"
           class="img-wrap"
           :class="{ sized: images.length === 1 && singleImageStyle(f) }"
@@ -51,7 +51,7 @@ const profile = useProfilePopout()
             :alt="f.comment ?? f.name"
             :class="{ blur: f.isSensitive && !revealed[f.id] }"
             loading="lazy"
-            @click="f.isSensitive && !revealed[f.id] ? (revealed[f.id] = true) : (lightbox = f.url)"
+            @click="f.isSensitive && !revealed[f.id] ? (revealed[f.id] = true) : (lightbox = index)"
           >
           <span v-if="f.isSensitive && !revealed[f.id]" class="nsfw">민감한 콘텐츠 · 클릭해서 보기</span>
         </div>
@@ -87,11 +87,12 @@ const profile = useProfilePopout()
       <NoteBody :note="quote" :depth="(props.depth ?? 0) + 1" />
     </div>
 
-    <Teleport to="body">
-      <div v-if="lightbox" class="lightbox" @click="lightbox = null">
-        <img :src="lightbox" alt="">
-      </div>
-    </Teleport>
+    <ImageLightbox
+      v-if="lightbox !== null"
+      :images="images"
+      :initial-index="lightbox"
+      @close="lightbox = null"
+    />
   </div>
 </template>
 
@@ -141,6 +142,12 @@ const profile = useProfilePopout()
 }
 .images.n3 .img-wrap:first-child {
   grid-row: span 2;
+  aspect-ratio: auto;
+}
+/* Fill the two-row cell without the image's own height stretching the rows */
+.images.n3 .img-wrap:first-child img {
+  position: absolute;
+  inset: 0;
 }
 .img-wrap {
   position: relative;
@@ -272,20 +279,5 @@ const profile = useProfilePopout()
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.lightbox {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: rgba(0, 0, 0, 0.85);
-  cursor: zoom-out;
-}
-.lightbox img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
 }
 </style>

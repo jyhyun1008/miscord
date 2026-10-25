@@ -34,12 +34,14 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
   position: fixed;
   inset: 0;
   z-index: 80;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 16px;
   background: rgba(0, 0, 0, 0.7);
 }
 .modal {
+  min-width: 0;
   max-width: 100%;
   max-height: calc(100dvh - 32px);
   display: flex;
@@ -69,8 +71,10 @@ header p {
   top: 14px;
 }
 .content {
+  min-width: 0;
   padding: 0 16px 16px;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 footer {
   display: flex;
