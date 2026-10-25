@@ -33,7 +33,11 @@ export default defineComponent({
 
     function goTag(e: MouseEvent, tag: string) {
       e.preventDefault()
-      if (account.value) navigateTo(channelPath(account.value.key, { kind: 'tag', tag }))
+      const a = account.value
+      if (!a) return
+      // Guests have no tag channel to open; show it on the server instead
+      if (isGuest(a)) window.open(`https://${a.host}/tags/${encodeURIComponent(tag)}`, '_blank', 'noopener,noreferrer')
+      else navigateTo(channelPath(a.key, { kind: 'tag', tag }))
     }
 
     function render(nodes: mfm.MfmNode[]): (VNode | string)[] {
@@ -81,6 +85,10 @@ export default defineComponent({
           case 'link':
             return h('a', { href: safeHttpUrl(node.props.url), target: '_blank', rel: 'noopener noreferrer', title: node.props.url }, render(node.children))
           case 'mention':
+            // No profile popout outside the app; link to the profile on the server
+            if (account.value && isGuest(account.value)) {
+              return h('a', { class: 'mfm-mention', href: `https://${account.value.host}/${node.props.acct}`, target: '_blank', rel: 'noopener noreferrer' }, node.props.acct)
+            }
             return h('a', {
               class: 'mfm-mention',
               href: '#',

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-const host = ref('')
+// Shared page links pass the server they came from
+const host = ref(String(useRoute().query.host ?? ''))
 const busy = ref(false)
 const error = ref('')
 const { accounts } = useAccounts()

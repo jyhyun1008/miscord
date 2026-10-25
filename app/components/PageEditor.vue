@@ -138,6 +138,19 @@ watch([title, summary, text, name, font, alignCenter, cover], () => {
 })
 onBeforeUnmount(writeDraft)
 
+// Ask before leaving with unpublished changes (the local draft survives, but it's easy to forget)
+const LEAVE_MESSAGE = `${props.pageId ? '저장하지 않은' : '게시하지 않은'} 내용이 있어요. 나갈까요?\n(이 기기에 임시 저장돼서 다시 열면 이어 쓸 수 있어요)`
+const hasChanges = () => ready.value && !saved && !sameContent(snapshot(), base)
+const confirmLeave = () => !hasChanges() || confirm(LEAVE_MESSAGE)
+// Switching channels stays on the same route, so it's an update rather than a leave
+onBeforeRouteUpdate(confirmLeave)
+onBeforeRouteLeave(confirmLeave)
+function onBeforeUnload(e: BeforeUnloadEvent) {
+  if (hasChanges()) e.preventDefault()
+}
+onMounted(() => window.addEventListener('beforeunload', onBeforeUnload))
+onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload))
+
 function discardDraft() {
   removeKey(draftKey)
   apply(base)

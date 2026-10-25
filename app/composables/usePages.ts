@@ -79,6 +79,11 @@ export function pageUrl(account: Account, page: Page) {
   return `https://${host}/@${page.user.username}/pages/${encodeURIComponent(page.name)}`
 }
 
+/** Miscord link anyone can open: in the app if they're logged in to that server, read-only otherwise. */
+export function pageShareUrl(account: Account, page: Page) {
+  return `${location.origin}/p/${account.host}/${page.id}`
+}
+
 /** Cover image for cards: eye-catching image, else the first image in the body. */
 export function pageCover(page: Page) {
   if (page.eyeCatchingImage) return page.eyeCatchingImage

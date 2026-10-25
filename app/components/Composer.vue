@@ -599,7 +599,7 @@ textarea::placeholder {
 
 @media (max-width: 768px) {
   .composer {
-    padding: 0 8px calc(8px + env(safe-area-inset-bottom));
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
   }
   .tagbtn {
     display: none;
