@@ -35,6 +35,8 @@ const csp = [
   `media-src 'self' https: blob:`,
   `connect-src 'self' https: wss:`,
   `font-src 'self' data:`,
+  // Click-to-play link players; keep in sync with PLAYER_HOSTS in app/utils/embed.ts
+  `frame-src https://www.youtube-nocookie.com https://www.youtube.com https://w.soundcloud.com https://player.vimeo.com https://open.spotify.com https://embed.nicovideo.jp https://bandcamp.com`,
   `worker-src 'self'`,
   `manifest-src 'self'`,
   `object-src 'none'`,

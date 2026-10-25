@@ -23,6 +23,7 @@ npm run dev        # http://localhost:3223
 토큰과 채널 설정은 브라우저 `localStorage`에만 저장되며 별도 서버는 없습니다.
 
 정적 호스팅: `npm run generate` 후 `.output/public`을 배포하세요 (SPA fallback 필요).
+일반 링크 미리보기는 인스턴스의 `/url`이 CORS를 허용하지 않아 같은 origin의 `/url-preview` 중계가 필요합니다 (Docker 이미지의 nginx에 포함, `docker/nginx.conf` 참고). 중계가 없으면 YouTube·SoundCloud 미리보기만 표시됩니다.
 
 ## Docker 배포
 

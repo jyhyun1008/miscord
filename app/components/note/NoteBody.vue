@@ -21,6 +21,12 @@ function singleImageStyle(f: DriveFile) {
   const scale = Math.min(1, SINGLE_MAX_W / w, SINGLE_MAX_H / h)
   return { width: `${Math.round(w * scale)}px`, aspectRatio: `${w} / ${h}` }
 }
+// A quoted note's own link (e.g. a trailing "RN: https://…") is already shown as the quote
+const links = computed(() => {
+  const q = quote.value
+  const own = q ? [q.url, q.uri, `/notes/${q.id}`] : []
+  return previewUrls(props.note.text).filter(u => !own.some(o => o && u.endsWith(o)))
+})
 const totalVotes = computed(() => props.note.poll?.choices.reduce((s, c) => s + c.votes, 0) ?? 0)
 
 const profile = useProfilePopout()
@@ -71,6 +77,8 @@ const profile = useProfilePopout()
         </div>
         <span class="poll-meta">{{ totalVotes }}표</span>
       </div>
+
+      <NoteUrlPreview v-for="u in links" :key="u" :url="u" />
     </template>
 
     <!-- Quote: Discord-like embed with accent bar -->
